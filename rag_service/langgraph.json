@@ -1,0 +1,9 @@
+{
+    "dependencies": ["./agent_service/app.py"],
+    "description": "A simple agent that can be used to test the LangGraph framework.",
+    "name": "LangGraph Agent",
+    "graphs": {
+      "agent": "./agent_service/app.py:workflow"
+    },
+    "env": ".env"
+  }

@@ -1,0 +1,10 @@
+GOOGLE_API_KEY=your_key_here
+LANGSMITH_API_KEY=your_langsmith_api_key
+LANGCHAIN_API_KEY=your_langsmith_api_key
+LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+LANGCHAIN_PROJECT=LangGraphMultiAgent
+OPENAI_API_KEY=your_openai_api_key
+OLLAMA_API_URL=http://ollama:11434
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_ENDPOINT=http://127.0.0.1:5000
+WEATHER_API_KEY=your_key_here

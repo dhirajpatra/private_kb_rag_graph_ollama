@@ -30,7 +30,7 @@ class RAGGraphService:
             model=self.model,
             base_url=self.base_url,
             temperature=0,
-            max_tokens=200,
+            max_tokens=300,
             top_p=0.1
         )
         self.prompt = self._get_prompt()

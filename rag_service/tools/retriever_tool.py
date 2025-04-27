@@ -3,21 +3,22 @@ import logging
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 from tools.retriever import retriever  # This imports the pre-initialized retriever
+from functools import lru_cache  # Import LRU cache
 
 logging.basicConfig(level=logging.INFO)
 k = 3  # Default number of documents to return
 
 class RetrieverToolArgs(BaseModel):
-    query: str = Field(description="The search query to retrive information in the blog posts.")
+    query: str = Field(description="The search query to retrieve information in the blog posts.")
     k: int = Field(default=k, description="Number of documents to return")
 
 @tool(args_schema=RetrieverToolArgs)
+@lru_cache(maxsize=100)  # Cache up to 100 results
 def retriever_tool(query: str, k: int = 1) -> dict:
     """
     Search blog posts about LLM, prompt engineering, and adversarial attacks.
     Returns relevant passages based on semantic similarity.
     """
-    logging.info(f"*********************** [blog_retriever] Searching for: {query}")
     try:
         # Update search parameters
         retriever.search_kwargs["k"] = k

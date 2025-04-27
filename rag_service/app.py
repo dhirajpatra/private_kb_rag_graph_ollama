@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from graph.rag_graph import run_rag_chain
+from graph.rag_graph import RAGGraphService
 # from slowapi import Limiter
 # from slowapi.util import get_remote_address
 
@@ -24,6 +24,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+rag_service = RAGGraphService()
+
 # Request/Response Models
 class InputMessage(BaseModel):
     text: str
@@ -37,7 +39,7 @@ class OutputMessage(BaseModel):
 def chat(input_msg: InputMessage):
     try:
         logging.info(f"Received message: {input_msg.text}")
-        reply = run_rag_chain(query=input_msg.text)  # Ensure this is a valid string or dict
+        reply = rag_service.run(query=input_msg.text)  # Ensure this is a valid string or dict
         return {"reply": reply}
     except Exception as e:
         logging.exception("Chat processing failed.")

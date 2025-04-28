@@ -1,8 +1,10 @@
 # tools/uploader.py
 import os
-import requests
 import logging
+import shutil
+import tempfile
 from pathlib import Path
+from fastapi import UploadFile
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -18,59 +20,59 @@ CHUNK_SIZE = 300
 CHUNK_OVERLAP = 50
 k = 3
 
-def save_drive_pdf_to_chroma(drive_url: str, collection_name: str):
-    # Create temp dir
-    temp_dir = Path("./temp_uploads")
-    temp_dir.mkdir(parents=True, exist_ok=True)
+async def save_uploaded_pdf_to_chroma(file: UploadFile, collection_name: str):
+    try:
+        # Create temp directory for the uploaded file
+        temp_dir = Path("./temp_uploads")
+        temp_dir.mkdir(parents=True, exist_ok=True)
 
-    # Download the file
-    file_name = drive_url.split("/")[-2] + ".pdf"  # Rough parsing
-    local_path = temp_dir / file_name
+        # Save the uploaded PDF to the temporary directory
+        local_path = temp_dir / file.filename
+        with open(local_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
 
-    response = requests.get(drive_url)
-    if response.status_code != 200:
-        raise Exception(f"Failed to download file: {response.status_code}")
+        # Embedding setup
+        embeddings = OllamaEmbeddings(
+            model=EMBEDDING_MODEL,
+            base_url=OLLAMA_SERVER_URL
+        )
+
+        # Ensure persistence directory exists
+        Path(PERSIST_DIR).mkdir(parents=True, exist_ok=True)
+
+        # File system for cache-backed embeddings
+        fs = LocalFileStore(EMBEDDING_CACHE_DIR)
+        cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
+            embeddings,
+            fs,
+            namespace=EMBEDDING_MODEL
+        )
+
+        # Load the PDF file using PyPDFLoader
+        loader = PyPDFLoader(local_path)
+        docs = loader.load()
+
+        # Split the documents into chunks
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=CHUNK_SIZE,
+            chunk_overlap=CHUNK_OVERLAP
+        )
+        splits = splitter.split_documents(docs)
+
+        # Save the document splits into Chroma vector store
+        vectorstore = Chroma.from_documents(
+            documents=splits,
+            embedding=cached_embeddings,
+            collection_name=collection_name,
+            persist_directory=PERSIST_DIR,
+        )
+
+        # Return success message
+        return {
+            "status": "OK",
+            "message": f"Your file '{file.filename}' has been vectorized and saved into the vector database."
+        }
     
-    with open(local_path, "wb") as f:
-        f.write(response.content)
-
-    # embeddings
-    embeddings = OllamaEmbeddings(
-        model=EMBEDDING_MODEL,
-        base_url=OLLAMA_SERVER_URL
-    )
-
-    # create folders if not exist
-    Path(PERSIST_DIR).mkdir(parents=True, exist_ok=True)
-
-    fs = LocalFileStore(EMBEDDING_CACHE_DIR)
-    cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
-        embeddings,
-        fs,
-        namespace=EMBEDDING_MODEL
-    )
-
-    # load PDF
-    loader = PyPDFLoader(local_path)
-    docs = loader.load()
-
-    # split documents
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=CHUNK_SIZE,
-        chunk_overlap=CHUNK_OVERLAP
-    )
-    splits = splitter.split_documents(docs)
-
-    # save into Chroma
-    vectorstore = Chroma.from_documents(
-        documents=splits,
-        embedding=cached_embeddings,
-        collection_name=collection_name,
-        persist_directory=PERSIST_DIR,
-    )
-
-    # Do not return vectorstore
-    return {
-        "status": "OK",
-        "message": f"Your file vectorized and saved into vector database {file_name}"
-    }
+    except Exception as e:
+        logging.error(f"Error processing the uploaded PDF: {e}")
+        raise Exception(f"Error processing the file: {e}")

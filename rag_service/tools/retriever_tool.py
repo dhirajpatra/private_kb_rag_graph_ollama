@@ -9,25 +9,25 @@ logging.basicConfig(level=logging.INFO)
 k = 3  # Default number of documents to return
 
 class RetrieverToolArgs(BaseModel):
-    query: str = Field(description="The search query to retrieve information in the blog posts.")
+    query: str = Field(description="The search query to retrieve information from vector databases.")
     k: int = Field(default=k, description="Number of documents to return")
 
 @tool(args_schema=RetrieverToolArgs)
 @lru_cache(maxsize=100)  # Cache up to 100 results
 def retriever_tool(query: str, k: int = 1) -> dict:
     """
-    Search blog posts about LLM, prompt engineering, and adversarial attacks.
+    Search RAG vector databases.
     Returns relevant passages based on semantic similarity.
     """
     try:
         # Update search parameters
         retriever.search_kwargs["k"] = k
         results = retriever.invoke(query)
-        logging.info(f"[blog_retriever] Retrieved {len(results)} documents")
+        logging.info(f"[rag_retriever] Retrieved {len(results)} documents")
         return {
             "status": "success",
             "results": [{"content": doc.page_content, "metadata": doc.metadata} for doc in results]
         }
     except Exception as e:
-        logging.error(f"[blog_retriever] Error: {e}")
+        logging.error(f"[rag_retriever] Error: {e}")
         return {"status": "error", "message": f"Retrieval failed: {str(e)}"}

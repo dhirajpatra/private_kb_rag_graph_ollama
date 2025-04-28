@@ -2,6 +2,7 @@
 ollama_data/
 ollama_models/
 .langgraph_api/
+embedding_cache/
 
 __pycache__/
 *.py[cod]

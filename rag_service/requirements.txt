@@ -16,3 +16,4 @@ langchain-text-splitters
 beautifulsoup4
 langsmith
 neo4j
+pypdf

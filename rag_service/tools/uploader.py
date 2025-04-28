@@ -20,8 +20,14 @@ CHUNK_SIZE = 300
 CHUNK_OVERLAP = 50
 k = 3
 
-async def save_uploaded_pdf_to_chroma(file: UploadFile, collection_name: str):
+def save_uploaded_pdf_to_chroma(file: UploadFile, collection_name: str):
     try:
+        """Check if ChromaDB is properly initialized after saving."""
+        db_file = os.path.join(PERSIST_DIR, 'chroma.sqlite3')
+        if not os.path.exists(db_file):
+            logging.info(f"ChromaDB file not found at {db_file}.")
+            return False
+    
         # Create temp directory for the uploaded file
         temp_dir = Path("./temp_uploads")
         temp_dir.mkdir(parents=True, exist_ok=True)

@@ -16,7 +16,8 @@ load_dotenv()
 # Configuration
 PERSIST_DIR = "./chroma_db"
 EMBEDDING_CACHE_DIR = "./embedding_cache"
-COLLECTION_NAME = "lilian-blog"
+# COLLECTION_NAME = "lilian-blog"
+COLLECTION_NAME = "uploaded-docs"
 # go to container and pull the model fist eg. ollama pull mxbai-embed-large
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
 OLLAMA_SERVER_URL = os.getenv("BASE_URL")
@@ -67,19 +68,39 @@ def initialize_retriever():
         namespace=EMBEDDING_MODEL
     )
 
-    # Create directory if it doesn't exist
-    Path(PERSIST_DIR).mkdir(parents=True, exist_ok=True)
-    
-    if is_chroma_db_initialized(PERSIST_DIR):
+    # Initialize ChromaDB and check if collections exist
+    collection_dirs = is_chroma_db_initialized(PERSIST_DIR)
+    if collection_dirs:
         try:
-            logging.info("Loading existing ChromaDB from persistence directory")
-            return Chroma(
-                collection_name=COLLECTION_NAME,
-                persist_directory=PERSIST_DIR,
-                embedding_function=cached_embeddings,  # Use cached embeddings
-            ).as_retriever(search_kwargs={"k": k})
+            logging.info(f"Found collections: {collection_dirs}")
+            # Iterate over all collections
+            for collection_name in collection_dirs:
+                try:
+                    logging.info(f"Loading ChromaDB collection: {collection_name}")
+                    vectorstore = Chroma(
+                        collection_name=collection_name,
+                        persist_directory=PERSIST_DIR,
+                        embedding_function=cached_embeddings,  # Use cached embeddings
+                    ).as_retriever(search_kwargs={"k": k})
+                    
+                    # You can return a list of retrievers for each collection or aggregate results.
+                    # In this example, I am returning the first retriever found:
+                    return vectorstore
+                except Exception as e:
+                    logging.error(f"Failed to load ChromaDB for collection '{collection_name}': {e}")
         except Exception as e:
-            logging.error(f"Failed to load existing ChromaDB: {e}")
+            logging.error(f"Error loading ChromaDB collections: {e}")
+    
+    # if is_chroma_db_initialized(PERSIST_DIR):
+    #     try:
+    #         logging.info("Loading existing ChromaDB from persistence directory")
+    #         return Chroma(
+    #             collection_name=COLLECTION_NAME,
+    #             persist_directory=PERSIST_DIR,
+    #             embedding_function=cached_embeddings,  # Use cached embeddings
+    #         ).as_retriever(search_kwargs={"k": k})
+    #     except Exception as e:
+    #         logging.error(f"Failed to load existing ChromaDB: {e}")
     
     # Create new vectorstore if needed
     logging.info("Creating new ChromaDB vectorstore")

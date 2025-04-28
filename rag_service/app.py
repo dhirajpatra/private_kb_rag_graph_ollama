@@ -37,10 +37,10 @@ class OutputMessage(BaseModel):
 
 # pdf upload and vectorize for RAG
 @app.post("/upload")
-async def upload_pdf(file: UploadFile = File(...), collection_name: Optional[str] = "uploaded-docs"):
+def upload_pdf(file: UploadFile = File(...), collection_name: Optional[str] = "uploaded-docs"):
     try:
         # Save the uploaded PDF to Chroma
-        pdf_path = await save_uploaded_pdf_to_chroma(file, collection_name)
+        pdf_path = save_uploaded_pdf_to_chroma(file, collection_name)
         return {"status": "success", "message": f"PDF uploaded and vectorized.", "local_path": pdf_path}
     except Exception as e:
         logging.exception("Failed to process uploaded PDF.")

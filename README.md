@@ -215,10 +215,4 @@ You don't have to **save every query**.
 **Saving to Neo4j is highly recommended.**  
 It will **unlock a second brain** for your Private AI system.
 
----
-
-Would you also like me to show you **a simple flow**:  
-_"User Query ➔ Create Graph ➔ Save into Neo4j ➔ Use later during RAG"_  
-in a small neat diagram? 🎯  
-(so you can directly plan architecture)
 

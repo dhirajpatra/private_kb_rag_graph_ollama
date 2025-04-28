@@ -91,17 +91,6 @@ def initialize_retriever():
         except Exception as e:
             logging.error(f"Error loading ChromaDB collections: {e}")
     
-    # if is_chroma_db_initialized(PERSIST_DIR):
-    #     try:
-    #         logging.info("Loading existing ChromaDB from persistence directory")
-    #         return Chroma(
-    #             collection_name=COLLECTION_NAME,
-    #             persist_directory=PERSIST_DIR,
-    #             embedding_function=cached_embeddings,  # Use cached embeddings
-    #         ).as_retriever(search_kwargs={"k": k})
-    #     except Exception as e:
-    #         logging.error(f"Failed to load existing ChromaDB: {e}")
-    
     # Create new vectorstore if needed
     logging.info("Creating new ChromaDB vectorstore")
     try:

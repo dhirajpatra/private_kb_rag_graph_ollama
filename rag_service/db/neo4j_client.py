@@ -2,6 +2,7 @@
 
 from neo4j import GraphDatabase
 import os
+from datetime import datetime
 
 class Neo4jClient:
     def __init__(self):
@@ -13,32 +14,73 @@ class Neo4jClient:
     def close(self):
         self.driver.close()
 
-    def create_relationship(self, question: str, answer: str):
+    def create_relationship(self, question: str, answer: str, category: str = None):
+        """Create relationship between question and answer with optional category"""
         with self.driver.session() as session:
-            session.run(
-                """
+            query = """
                 MERGE (q:Question {text: $question})
                 MERGE (a:Answer {text: $answer})
-                MERGE (q)-[:ANSWERED_BY]->(a)
-                """,
-                question=question,
-                answer=answer
-            )
-
-    # It will find the data from neo4j
-    def find_answer(self, question: str) -> str:
-        with self.driver.session() as session:
-            result = session.run(
+                MERGE (q)-[r:ANSWERED_BY {last_used: datetime()}]->(a)
                 """
-                MATCH (q:Question)-[:ANSWERED_BY]->(a:Answer)
+            params = {"question": question, "answer": answer}
+            
+            if category:
+                query += """
+                    MERGE (c:Category {name: $category})
+                    MERGE (q)-[:HAS_CATEGORY]->(c)
+                    """
+                params["category"] = category.lower()
+            
+            session.run(query, **params)
+
+    def find_answer(self, question: str, update_last_used: bool = True) -> str:
+        """Find answer for a question, optionally updating last_used timestamp"""
+        with self.driver.session() as session:
+            query = """
+                MATCH (q:Question)-[r:ANSWERED_BY]->(a:Answer)
                 WHERE toLower(q.text) CONTAINS toLower($question)
-                RETURN a.text AS answer
+                RETURN a.text AS answer, elementId(r) as rel_id
                 LIMIT 1
-                """,
-                question=question
-            )
+                """
+            result = session.run(query, question=question)
             record = result.single()
+            
             if record:
+                if update_last_used:
+                    # Update the last_used timestamp
+                    session.run(
+                        """
+                        MATCH ()-[r]->()
+                        WHERE elementId(r) = $rel_id
+                        SET r.last_used = datetime()
+                        """,
+                        rel_id=record["rel_id"]
+                    )
                 return record["answer"]
             return None
 
+    def get_questions_by_category(self, category: str) -> list:
+        """Get all questions in a specific category"""
+        with self.driver.session() as session:
+            result = session.run(
+                """
+                MATCH (q:Question)-[:HAS_CATEGORY]->(c:Category {name: $category})
+                RETURN q.text AS question
+                """,
+                category=category.lower()
+            )
+            return [record["question"] for record in result]
+
+    def get_recently_used_answers(self, days: int = 7) -> list:
+        """Get answers accessed within the last X days"""
+        with self.driver.session() as session:
+            result = session.run(
+                """
+                MATCH (q:Question)-[r:ANSWERED_BY]->(a:Answer)
+                WHERE r.last_used > datetime() - duration('P'+$days+'D')
+                RETURN q.text AS question, a.text AS answer, r.last_used AS last_used
+                ORDER BY r.last_used DESC
+                """,
+                days=str(days)
+            )
+            return [dict(record) for record in result]

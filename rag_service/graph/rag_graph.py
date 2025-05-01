@@ -3,7 +3,7 @@
 import os
 import logging
 from dotenv import load_dotenv
-from typing import List, TypedDict
+from typing import List, TypedDict, Optional
 from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -19,6 +19,7 @@ class GraphState(TypedDict, total=False):
     question: str
     context: List[Document]
     answer: str
+    category: Optional[str]
     prompt: ChatPromptTemplate
     llm: ChatOllama
 
@@ -34,6 +35,7 @@ class RAGGraphService:
             top_p=0.1
         )
         self.prompt = self._get_prompt()
+        self.category_prompt = self._get_category_prompt()
 
     def _get_prompt(self) -> ChatPromptTemplate:
         return ChatPromptTemplate.from_messages([
@@ -48,6 +50,21 @@ class RAGGraphService:
             MessagesPlaceholder(variable_name="context"),
             ("human", "{question}")
         ])
+
+    def _get_category_prompt(self) -> ChatPromptTemplate:
+        return ChatPromptTemplate.from_messages([
+            ("system",
+             "Classify the following question into one of these categories: "
+             "[technology, science, health, business, entertainment, general]. "
+             "Respond with only the category name in lowercase."),
+            ("human", "{question}")
+        ])
+
+    def _determine_category(self, question: str) -> str:
+        """Use LLM to determine the category of a question"""
+        messages = self.category_prompt.invoke({"question": question})
+        response = self.llm.invoke(messages)
+        return response.content.strip().lower()
 
     def _retrieve(self, state: GraphState) -> dict:
         logging.info("Entering retrieve node")
@@ -74,11 +91,17 @@ class RAGGraphService:
         answer = response.content
         logging.info(f"Generated response: {answer}")
 
+        # Determine category and store in Neo4j
+        category = self._determine_category(state["question"])
         neo4j_client = Neo4jClient()
-        neo4j_client.create_relationship(state["question"], answer)
+        neo4j_client.create_relationship(
+            question=state["question"],
+            answer=answer,
+            category=category
+        )
         neo4j_client.close()
 
-        return {"answer": answer}
+        return {"answer": answer, "category": category}
 
     def _create_graph(self):
         graph = StateGraph(GraphState)
@@ -91,13 +114,16 @@ class RAGGraphService:
 
     def run(self, query: str) -> str:
         neo4j_client = Neo4jClient()
+        
+        # Check for existing answer (will update last_used automatically)
         existing_answer = neo4j_client.find_answer(query)
-        neo4j_client.close()
-
+        
         if existing_answer:
             logging.info("Answer found in Neo4j graph")
+            neo4j_client.close()
             return existing_answer
 
+        # If not found, execute the full RAG pipeline
         rag_graph = self._create_graph()
         initial_state = GraphState(
             question=query,
@@ -107,4 +133,6 @@ class RAGGraphService:
             llm=self.llm
         )
         result = rag_graph.invoke(initial_state)
+        neo4j_client.close()
+        
         return result["answer"]

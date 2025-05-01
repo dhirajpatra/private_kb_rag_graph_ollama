@@ -30,7 +30,8 @@ services:
     ports:
       - "5000:5000"
     depends_on:
-      - ollama_server_lite
+      # - ollama_server_lite
+      - ollama_server
     deploy:
       resources:
         limits:
@@ -39,17 +40,37 @@ services:
     networks:
       - rag-network
 
-  ollama_server_lite:
-    image: langgraph_example-ollama_server_lite:latest
+  # ollama_server_lite:
+  #   image: langgraph_example-ollama_server_lite:latest
+  #   build: 
+  #     context: ./ollama_server
+  #   container_name: ollama_server_lite
+  #   ports:
+  #     - "11435:11434"
+  #   volumes:
+  #     - .:/app
+  #     - ./ollama_data:/root/.ollama
+  #     - ./ollama_models:/root/.ollama/models
+  #   entrypoint: ["/bin/bash", "/app/ollama_server/entrypoint.sh"]
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '2.00'
+  #         memory: 8G
+  #   networks:
+  #     - rag-network
+
+  ollama_server:
+    image: ollama_server:latest
     build: 
       context: ./ollama_server
-    container_name: ollama_server_lite
+    container_name: ollama_server
     ports:
       - "11435:11434"
     volumes:
       - .:/app
-      - ./ollama_data:/root/.ollama
-      - ./ollama_models:/root/.ollama/models
+      - ./ollama_data_large:/root/.ollama
+      - ./ollama_models_large:/root/.ollama/models
     entrypoint: ["/bin/bash", "/app/ollama_server/entrypoint.sh"]
     deploy:
       resources:
@@ -67,7 +88,8 @@ services:
     ports:
       - "8501:8501"
     depends_on:
-      - ollama_server_lite
+      # - ollama_server_lite
+      - ollama_server
       - rag_service
     deploy:
       resources:
@@ -78,8 +100,10 @@ services:
       - rag-network
 
 volumes:
-  ollama_data:
-  ollama_models:
+  # ollama_data:
+  # ollama_models:
+  ollama_data_large:
+  ollama_models_large:
 
 networks:
   rag-network:

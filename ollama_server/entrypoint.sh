@@ -8,7 +8,8 @@ OLLAMA_PID=$!
 mkdir -p /root/.ollama/models
 
 # Define models
-MODEL_NAME="gemma3:1b"
+# MODEL_NAME="gemma3:1b"
+MODEL_NAME="qwen3:4b"
 EMBEDDING_MODEL="mxbai-embed-large"
 
 # Wait for the Ollama server to start accepting connections

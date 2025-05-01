@@ -1,6 +1,8 @@
 # Byte-compiled / optimized / DLL files
 ollama_data/
 ollama_models/
+ollama_data_large/
+ollama_models_large/
 .langgraph_api/
 embedding_cache/
 

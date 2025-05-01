@@ -22,6 +22,8 @@ Using structured models (BaseModel) and structured output from LLMs for safe rou
 End-to-end flow:
 Route ➔ Decompose ➔ Retrieve ➔ Prompt ➔ Query Graph ➔ Answer
 
+# ![RAG based reasoning chat](./images/6.png "RAG based deep reasoning chat")
+# ![RAG based reasoning chat](./images/7.png "RAG based deep reasoning chat in different docs")
 # ![RAG based private chat](./images/4.png "Private Context Chat")
 # ![Multiple RAG Content based private chat](./images/5.png "Multiple RAG Context based Private Chat")
 # ![KrishiGPT Chatbot](./images/multiagentworking.png "KrishiGPT Chatbot")

@@ -37,6 +37,13 @@ class RAGGraphService:
         self.prompt = self._get_prompt()
         self.category_prompt = self._get_category_prompt()
 
+        self.neo4j_client = Neo4jClient()
+        self.neo4j_client.create_indexes()
+
+        if os.getenv("CLEAN_NEO4J_COLLECTIONS", "no").lower() == "yes":
+            logging.info("Cleaning Neo4j database as per .env setting")
+            self.neo4j_client.clear_database()
+
     def _get_prompt(self) -> ChatPromptTemplate:
         return ChatPromptTemplate.from_messages([
             ("system", 
@@ -61,7 +68,6 @@ class RAGGraphService:
         ])
 
     def _determine_category(self, question: str) -> str:
-        """Use LLM to determine the category of a question"""
         messages = self.category_prompt.invoke({"question": question})
         response = self.llm.invoke(messages)
         return response.content.strip().lower()
@@ -91,16 +97,12 @@ class RAGGraphService:
         answer = response.content
         logging.info(f"Generated response: {answer}")
 
-        # Determine category and store in Neo4j
         category = self._determine_category(state["question"])
-        neo4j_client = Neo4jClient()
-        neo4j_client.create_relationship(
+        self.neo4j_client.create_relationship(
             question=state["question"],
             answer=answer,
             category=category
         )
-        neo4j_client.close()
-
         return {"answer": answer, "category": category}
 
     def _create_graph(self):
@@ -113,17 +115,12 @@ class RAGGraphService:
         return graph.compile()
 
     def run(self, query: str) -> str:
-        neo4j_client = Neo4jClient()
-        
-        # Check for existing answer (will update last_used automatically)
-        existing_answer = neo4j_client.find_answer(query)
-        
+        existing_answer = self.neo4j_client.find_answer(query)
         if existing_answer:
             logging.info("Answer found in Neo4j graph")
-            neo4j_client.close()
+            self.neo4j_client.close()
             return existing_answer
 
-        # If not found, execute the full RAG pipeline
         rag_graph = self._create_graph()
         initial_state = GraphState(
             question=query,
@@ -133,6 +130,5 @@ class RAGGraphService:
             llm=self.llm
         )
         result = rag_graph.invoke(initial_state)
-        neo4j_client.close()
-        
+        self.neo4j_client.close()
         return result["answer"]

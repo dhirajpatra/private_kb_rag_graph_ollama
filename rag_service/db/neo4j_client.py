@@ -3,6 +3,8 @@
 from neo4j import GraphDatabase
 import os
 from datetime import datetime
+from dotenv import load_dotenv
+load_dotenv()
 
 class Neo4jClient:
     def __init__(self):
@@ -77,10 +79,22 @@ class Neo4jClient:
             result = session.run(
                 """
                 MATCH (q:Question)-[r:ANSWERED_BY]->(a:Answer)
-                WHERE r.last_used > datetime() - duration('P'+$days+'D')
+                WHERE r.last_used >= datetime().epochMillis - ($days * 24 * 60 * 60 * 1000)
                 RETURN q.text AS question, a.text AS answer, r.last_used AS last_used
                 ORDER BY r.last_used DESC
                 """,
                 days=str(days)
             )
             return [dict(record) for record in result]
+        
+    def clear_database(self):
+        """Delete all nodes and relationships from the database"""
+        with self.driver.session() as session:
+            session.run("MATCH (n) DETACH DELETE n")
+
+    def create_indexes(self):
+        """Ensure required indexes exist"""
+        with self.driver.session() as session:
+            session.run("CREATE INDEX question_text_index IF NOT EXISTS FOR (q:Question) ON (q.text)")
+            session.run("CREATE INDEX category_name_index IF NOT EXISTS FOR (c:Category) ON (c.name)")
+    

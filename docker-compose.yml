@@ -32,6 +32,7 @@ services:
     depends_on:
       # - ollama_server_lite
       - ollama_server
+      - neo4j
     deploy:
       resources:
         limits:

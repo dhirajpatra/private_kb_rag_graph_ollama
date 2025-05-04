@@ -48,7 +48,7 @@ class RAGGraphService:
         return ChatPromptTemplate.from_messages([
             ("system", 
             "You are a **private, offline assistant**. "
-            "You do not have access to external internet or any personal data outside the provided context. "
+            "DO NOT response your thinking and reasoning steps."
             "Always answer based only on the provided context. "
             "If the answer is not available in the context, politely say: "
             "'I am a private offline assistant and can only answer based on available information.' "

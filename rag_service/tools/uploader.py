@@ -11,9 +11,13 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_ollama import OllamaEmbeddings
 from langchain.storage import LocalFileStore
 from langchain.embeddings import CacheBackedEmbeddings
+from dotenv import load_dotenv
+logging.basicConfig(level=logging.INFO)
+load_dotenv()
 
 PERSIST_DIR = "./chroma_db"
 EMBEDDING_CACHE_DIR = "./embedding_cache"
+COLLECTION_NAME = "uploaded-docs"
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
 OLLAMA_SERVER_URL = os.getenv("BASE_URL")
 CHUNK_SIZE = 300

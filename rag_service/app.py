@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from graph.rag_graph import RAGGraphService
-from tools.uploader import save_uploaded_pdf_to_chroma
 # from slowapi import Limiter
 # from slowapi.util import get_remote_address
 
@@ -35,10 +34,42 @@ class InputMessage(BaseModel):
 class OutputMessage(BaseModel):
     reply: str
 
+# @app.post("/process-to-kg")
+# async def process_to_kg(file: UploadFile, source_type: str):
+#     """Unified endpoint for KG processing, saving, and graph creation"""
+#     try:
+#         # Save temp file
+#         file_path = f"/tmp/{file.filename}"
+#         with open(file_path, "wb") as f:
+#             f.write(await file.read())
+
+#         # Unified KG workflow
+#         result = await kg_builder.process_document(file_path, source_type)
+#         return {
+#             "status": "success",
+#             "message": "Knowledge Graph processed successfully.",
+#             "details": result
+#         }
+#     except Exception as e:
+#         logging.exception("KG processing failed.")
+#         raise HTTPException(status_code=500, detail=str(e))
+
+
+#     # Process through KG builder
+#     result = await kg_builder.process_document(file_path, source_type)
+#     return result
+
+# @app.get("/ask")
+# async def ask_question(question: str, mode: str = "vector"):
+#     """Query the knowledge graph"""
+#     return await kg_builder.query_graph(question, mode)
+
 # pdf upload and vectorize for RAG
 @app.post("/upload")
 def upload_pdf(file: UploadFile = File(...), collection_name: Optional[str] = "uploaded-docs"):
     try:
+        from tools.uploader import save_uploaded_pdf_to_chroma
+        
         # Save the uploaded PDF to Chroma
         pdf_path = save_uploaded_pdf_to_chroma(file, collection_name)
         return {"status": "success", "message": f"PDF uploaded and vectorized.", "local_path": pdf_path}
@@ -64,6 +95,10 @@ def health():
 
 @app.get("/info")
 def info():
+    return {"status": "ok"}
+
+@app.get("/health")
+def health_check():
     return {"status": "ok"}
 
 @app.post("/runs/batch")

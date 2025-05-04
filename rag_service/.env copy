@@ -1,21 +1,61 @@
+# ========================
+# API Keys & External Services
+# ========================
 GOOGLE_API_KEY=your_key_here
 LANGSMITH_API_KEY=your_langsmith_api_key
+OPENAI_API_KEY=your_openai_api_key
+DIFFBOT_API_KEY=
+WEATHER_API_KEY=your_key_here
+
+# ========================
+# LangChain Configuration
+# ========================
 LANGCHAIN_API_KEY=your_langsmith_api_key
 LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
 LANGCHAIN_PROJECT=LangGraphMultiAgent
-OPENAI_API_KEY=your_openai_api_key
-OLLAMA_API_URL=http://ollama:11434
 LANGCHAIN_TRACING_V2=true
-LANGCHAIN_ENDPOINT=http://127.0.0.1:5000
-WEATHER_API_KEY=your_key_here
-# BASE_URL=http://ollama_server_lite:11434
-BASE_URL=http://ollama_server:11434
-EMBEDDING_MODEL=mxbai-embed-large
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=neo4j_password
-NEO4J_URI=bolt://neo4j:7687
-CLEAN_NEO4J_COLLECTIONS=yes
-# MODEL_NAME=gemma3:1b
-MODEL_NAME=qwen3:4b
-# MODEL=gemma3:1b
+
+# ========================
+# LLM Configuration
+# ========================
 MODEL=qwen3:4b
+MODEL_NAME=qwen3:4b
+OLLAMA_API_URL=http://ollama_server:11434
+BASE_URL=http://ollama_server:11434
+KG_LLM_MODEL=qwen3:4b
+LLM_MODEL_CONFIG_ollama_qwen3=qwen3:4b,http://ollama_server:11434
+
+# ========================
+# Neo4j Database Configuration
+# ========================
+NEO4J_URI=bolt://neo4j:7687
+NEO4J_USER=neo4j
+NEO4J_USERNAME=neo4j
+NEO4J_PASSWORD=neo4j_password
+NEO4J_DATABASE=default
+CLEAN_NEO4J_COLLECTIONS=yes
+
+# ========================
+# Embedding & Processing
+# ========================
+EMBEDDING_MODEL=mxbai-embed-large
+IS_EMBEDDING=true
+ENTITY_EMBEDDING=False
+KNN_MIN_SCORE=0.94
+UPDATE_GRAPH_CHUNKS_PROCESSED=20
+NUMBER_OF_CHUNKS_TO_COMBINE=6
+DUPLICATE_TEXT_DISTANCE=5
+DUPLICATE_SCORE_VALUE=0.97
+MAX_TOKEN_CHUNK_SIZE=10000
+RAGAS_EMBEDDING_MODEL=ollama
+EMBEDDING_MODEL_SERVER=ollama
+
+# ========================
+# Feature Flags
+# ========================
+GEMINI_ENABLED=False
+GCP_LOG_METRICS_ENABLED=False
+GCS_FILE_CACHE=False
+ENABLE_GRAPH_VISUALIZATION=true
+ENABLE_SCHEMA_VALIDATION=true
+AUTO_MERGE_DUPLICATES=true

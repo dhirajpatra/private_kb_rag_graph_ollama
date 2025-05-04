@@ -32,7 +32,7 @@ def is_chroma_db_initialized(persist_dir: str) -> bool:
     """Check if ChromaDB is properly initialized after saving."""
     db_file = os.path.join(persist_dir, 'chroma.sqlite3')
     if not os.path.exists(db_file):
-        logging.info(f"ChromaDB file not found at {db_file}.")
+        logging.info(f"ChromaDB file not found in retriever tool at {db_file}.")
         return False
 
     # Try to find a subdirectory that looks like a Chroma collection directory
@@ -92,7 +92,7 @@ def initialize_retriever():
             logging.error(f"Error loading ChromaDB collections: {e}")
     
     # Create new vectorstore if needed
-    logging.info("Creating new ChromaDB vectorstore")
+    logging.info("Creating new ChromaDB in retrierver tool at vectorstore")
     try:
         loader = WebBaseLoader(BLOG_URLS)
         
@@ -103,7 +103,7 @@ def initialize_retriever():
             chunk_overlap=CHUNK_OVERLAP
         )
         splits = splitter.split_documents(docs)
-        
+        logging.info(f"Number of splits: {len(splits)}")
         # Create and return the vectorstore - persistence is automatic
         vectorstore = Chroma.from_documents(
             documents=splits,
@@ -111,7 +111,7 @@ def initialize_retriever():
             collection_name=COLLECTION_NAME,
             persist_directory=PERSIST_DIR
         )
-        
+        logging.info(f"Vectorstore created successfully: {vectorstore}")
         return vectorstore.as_retriever(search_kwargs={"k": k})
     except Exception as e:
         logging.error(f"Failed to create new ChromaDB: {e}")

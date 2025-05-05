@@ -32,7 +32,8 @@ from .shared.common_fn import load_embedding_model
 from .shared.constants import *
 load_dotenv() 
 
-EMBEDDING_FUNCTION , _ = load_embedding_model("ollama") 
+embedding_model = os.getenv("EMBEDDING_MODEL_SERVER")
+EMBEDDING_FUNCTION , _ = load_embedding_model(embedding_model) 
 
 class SessionChatHistory:
     history_dict = {}

@@ -1,6 +1,7 @@
 # rag_service/db/neo4j_client.py
 
 from neo4j import GraphDatabase
+import neo4j
 import os
 from datetime import datetime
 from dotenv import load_dotenv
@@ -93,8 +94,23 @@ class Neo4jClient:
             session.run("MATCH (n) DETACH DELETE n")
 
     def create_indexes(self):
-        """Ensure required indexes exist"""
+        """Ensure required indexes exist, only if the nodes are present"""
         with self.driver.session() as session:
-            session.run("CREATE INDEX question_text_index IF NOT EXISTS FOR (q:Question) ON (q.text)")
-            session.run("CREATE INDEX category_name_index IF NOT EXISTS FOR (c:Category) ON (c.name)")
+            # Step 1: Check if any nodes of type :Question exist
+            question_check = session.run("MATCH (q:Question) RETURN COUNT(q) AS count").single()
+            if question_check["count"] > 0:
+                try:
+                    session.run("CREATE INDEX question_text_index FOR (q:Question) ON (q.text)")
+                except neo4j.exceptions.CypherError:
+                    pass  # Handle case where index already exists
+            
+            # Step 2: Check if any nodes of type :Category exist
+            category_check = session.run("MATCH (c:Category) RETURN COUNT(c) AS count").single()
+            if category_check["count"] > 0:
+                try:
+                    session.run("CREATE INDEX category_name_index FOR (c:Category) ON (c.name)")
+                except neo4j.exceptions.CypherError:
+                    pass  # Handle case where index already exists
+
+
     

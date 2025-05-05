@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   neo4j:
-    image: neo4j:5.26.5-community
+    image: neo4j:4.4
     container_name: neo4j
     ports:
       - "7474:7474"
@@ -10,8 +10,15 @@ services:
     volumes:
       - ./data:/data
       - ./logs:/logs
+      - ./plugins:/plugins
     environment:
       - NEO4J_AUTH=neo4j/neo4j_password
+      - NEO4J_dbms_default_database=neo4j
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_apoc_import_file_enabled=true
+      - NEO4J_apoc_import_file_use__neo4j__config=true
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.meta.*,apoc.convert.*
     networks:
       - rag-network
 

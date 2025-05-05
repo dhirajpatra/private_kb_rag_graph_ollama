@@ -1,33 +1,35 @@
 from fastapi import FastAPI, File, UploadFile, Form, Request, HTTPException
-from fastapi_health import health
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
+from sse_starlette.sse import EventSourceResponse
+from langchain_neo4j import Neo4jGraph
+from dotenv import load_dotenv
+from typing import List, Optional
+from datetime import datetime, timezone
+
+# Local imports
 from .src.main import *
 from .src.QA_integration import *
 from .src.shared.common_fn import *
+from .src.api_response import create_api_response
+from .src.graphDB_dataAccess import graphDBdataAccess
+from .src.graph_query import get_graph_results, get_chunktext_results, visualize_schema
+from .src.chunkid_entities import get_entities_from_chunkids
+from .src.post_processing import create_vector_fulltext_indexes, create_entity_embedding, graph_schema_consolidation
+from .src.communities import create_communities
+from .src.neighbours import get_neighbour_nodes
+from .src.entities.source_node import sourceNode
+
+# Standard library imports
 import uvicorn
 import asyncio
 import base64
 import logging
-from .src.api_response import create_api_response
-from .src.graphDB_dataAccess import graphDBdataAccess
-from .src.graph_query import get_graph_results,get_chunktext_results,visualize_schema
-from .src.chunkid_entities import get_entities_from_chunkids
-from .src.post_processing import create_vector_fulltext_indexes, create_entity_embedding, graph_schema_consolidation
-from sse_starlette.sse import EventSourceResponse
-from .src.communities import create_communities
-from .src.neighbours import get_neighbour_nodes
-import json
-from typing import List, Optional
-import os
-from datetime import datetime, timezone
 import time
 import gc
-from starlette.middleware.gzip import GZipMiddleware
-from starlette.middleware.cors import CORSMiddleware
-from starlette.types import ASGIApp, Receive, Scope, Send
-from langchain_neo4j import Neo4jGraph
-from .src.entities.source_node import sourceNode
-from dotenv import load_dotenv
+import json
+import os
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
@@ -35,6 +37,7 @@ logger = logging
 CHUNK_DIR = os.path.join(os.path.dirname(__file__), "chunks")
 MERGED_DIR = os.path.join(os.path.dirname(__file__), "merged_files")
 NEO4J_URI = os.getenv("NEO4J_URI")
+NEO4J_URI_WEB = os.getenv("NEO4J_URI_WEB")
 NEO4J_USER = os.getenv("NEO4J_USER")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
 NEO4J_DATABASE = os.getenv("NEO4J_DATABASE")
@@ -70,11 +73,6 @@ def healthy():
 
 def sick():
     return False
-
-from fastapi import FastAPI, Request
-from starlette.middleware.gzip import GZipMiddleware
-from starlette.middleware.cors import CORSMiddleware
-from typing import List
 
 # Create custom middleware
 class GZipPathsMiddleware:
@@ -131,7 +129,7 @@ def create_source_knowledge_graph_url(
     source_url,
     wiki_query,
     source_type,
-    email,
+    email: str = "anonymous",
     uri=NEO4J_URI,
     userName=NEO4J_USER,
     password=NEO4J_PASSWORD,
@@ -140,6 +138,7 @@ def create_source_knowledge_graph_url(
 ):
     try:
         start = time.time()
+        # either of one
         source = source_url or wiki_query
         graph = create_graph_database_connection(uri, userName, password, database)
 
@@ -165,7 +164,7 @@ def create_source_knowledge_graph_url(
             'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time': f'{elapsed_time:.2f}',
             'email': email
         }
-        logger.log_struct(json_obj, "INFO")
+        logger.info(json_obj)
         return create_api_response("Success", message=message, success_count=success_count,
                                    failed_count=failed_count, file_name=lst_file_name,
                                    data={'elapsed_api_time': f'{elapsed_time:.2f}'})
@@ -178,7 +177,7 @@ def create_source_knowledge_graph_url(
             'source_type': source_type, 'source_url': source_url, 'wiki_query': wiki_query,
             'logging_time': formatted_time(datetime.now(timezone.utc)), 'email': email
         }
-        logger.log_struct(json_obj, "INFO")
+        logger.info(json_obj)
         logging.exception(f'File Failed in upload: {e}')
         return create_api_response('Failed', message=msg + error_message[:80],
                                    error=error_message, file_source=source_type)
@@ -191,7 +190,7 @@ def create_source_knowledge_graph_url(
             'source_type': source_type, 'source_url': source_url, 'wiki_query': wiki_query,
             'logging_time': formatted_time(datetime.now(timezone.utc)), 'email': email
         }
-        logger.log_struct(json_obj, "ERROR")
+        logger.info(json_obj, "ERROR")
         logging.exception(f'Exception Stack trace upload: {e}')
         return create_api_response('Failed', message=msg + error_message[:80],
                                    error=error_message, file_source=source_type)
@@ -212,7 +211,7 @@ def extract_knowledge_graph_from_file(
     language,
     retry_condition, 
     additional_instructions, 
-    email,
+    email: str = "anonymous",
     uri=NEO4J_URI, 
     userName=NEO4J_USER, 
     password=NEO4J_PASSWORD,
@@ -250,7 +249,7 @@ def extract_knowledge_graph_from_file(
                 'elapsed_api_time': f'{time.time() - start:.2f}', 'userName': userName,
                 'database': database, 'language': language, 'retry_condition': retry_condition, 'email': email
             })
-            logger.log_struct(result, "INFO")
+            logger.info(result)
             result.update(uri_latency)
         return create_api_response('Success', data=result, file_source=source_type)
 
@@ -267,7 +266,7 @@ def extract_knowledge_graph_from_file(
             'source_type': source_type, 'source_url': source_url, 'wiki_query': wiki_query,
             'logging_time': formatted_time(datetime.now(timezone.utc)), 'email': email
         }
-        logger.log_struct(log_data, "INFO")
+        logger.info(log_data)
         logging.exception(f'Handled error: {e}')
         return create_api_response("Failed", message=msg, error=msg, file_name=file_name)
 
@@ -285,7 +284,7 @@ def extract_knowledge_graph_from_file(
             'source_url': source_url, 'wiki_query': wiki_query,
             'logging_time': formatted_time(datetime.now(timezone.utc)), 'email': email
         }
-        logger.log_struct(log_data, "ERROR")
+        logger.info(log_data, "ERROR")
         logging.exception(f'Unhandled error: {e}')
         return create_api_response('Failed', message=log_data['message'] + msg[:100], error=msg, file_name=file_name)
 
@@ -294,7 +293,7 @@ def extract_knowledge_graph_from_file(
             
 @app.post("/sources_list")
 def get_source_list(
-    email,
+    email: str = "anonymous",
     uri=NEO4J_URI,
     userName=NEO4J_USER,
     password=NEO4J_PASSWORD,
@@ -305,11 +304,11 @@ def get_source_list(
         start = time.time()
         result = get_source_list_from_graph(uri, userName, password, database)
         elapsed = time.time() - start
-        logger.log_struct({
+        logger.info({
             'api_name': 'sources_list', 'db_url': uri, 'userName': userName,
             'database': database, 'logging_time': formatted_time(datetime.now(timezone.utc)),
             'elapsed_api_time': f'{elapsed:.2f}', 'email': email
-        }, "INFO")
+        })
         return create_api_response("Success", data=result, message=f"Elapsed time: {elapsed:.2f}s")
     except Exception as e:
         logging.exception("Error fetching source list")
@@ -318,7 +317,7 @@ def get_source_list(
 @app.post("/post_processing")
 def post_processing(
     tasks,
-    email,
+    email: str = "anonymous",
     uri=NEO4J_URI,
     userName=NEO4J_USER,
     password=NEO4J_PASSWORD,
@@ -360,7 +359,7 @@ def post_processing(
             logging.info("Updated source node with community related counts")
 
         elapsed = time.time() - start
-        logger.log_struct({
+        logger.info({
             'api_name': api_name, 'db_url': uri, 'userName': userName, 'database': database,
             'logging_time': formatted_time(datetime.now(timezone.utc)),
             'elapsed_api_time': f'{elapsed:.2f}', 'email': email
@@ -381,7 +380,7 @@ def chat_bot(
     document_names,
     session_id,
     mode,
-    email,
+    email: str = "anonymous",
     uri=NEO4J_URI,
     model=MODEL,
     userName=NEO4J_USER,
@@ -414,12 +413,12 @@ def chat_bot(
         elapsed = time.time() - qa_rag_start_time
         result["info"]["response_time"] = round(elapsed, 2)
 
-        logger.log_struct({
+        logger.info({
             'api_name': 'chat_bot', 'db_url': uri, 'userName': userName, 'database': database,
             'question': question, 'document_names': document_names, 'session_id': session_id,
             'mode': mode, 'logging_time': formatted_time(datetime.now(timezone.utc)),
             'elapsed_api_time': f'{elapsed:.2f}', 'email': email
-        }, "INFO")
+        })
 
         return create_api_response("Success", data=result)
 
@@ -434,7 +433,7 @@ def chat_bot(
 def chunk_entities(
     entities,
     mode,
-    email,
+    email: str = "anonymous",
     uri=NEO4J_URI,
     userName=NEO4J_USER,
 ):
@@ -453,7 +452,7 @@ def chunk_entities(
 
         elapsed_time = time.time() - start
 
-        logger.log_struct({
+        logger.info({
             'api_name': 'chunk_entities',
             'db_url': uri,
             'userName': userName,
@@ -464,7 +463,7 @@ def chunk_entities(
             'logging_time': formatted_time(datetime.now(timezone.utc)),
             'elapsed_api_time': f'{elapsed_time:.2f}',
             'email': email
-        }, "INFO")
+        })
 
         return create_api_response("Success", data=result, message=f"Total elapsed API time {elapsed_time:.2f}")
 
@@ -478,7 +477,7 @@ def chunk_entities(
 @app.post("/get_neighbours")
 def get_neighbours(
     elementId,
-    email,
+    email: str = "anonymous",
     uri=NEO4J_URI,
     userName=NEO4J_USER,
     password=NEO4J_PASSWORD,
@@ -497,7 +496,7 @@ def get_neighbours(
 
         elapsed_time = time.time() - start
 
-        logger.log_struct({
+        logger.info({
             'api_name': 'get_neighbours',
             'userName': userName,
             'database': database,
@@ -505,7 +504,7 @@ def get_neighbours(
             'logging_time': formatted_time(datetime.now(timezone.utc)),
             'elapsed_api_time': f'{elapsed_time:.2f}',
             'email': email
-        }, "INFO")
+        })
 
         return create_api_response("Success", data=result, message=f"Total elapsed API time {elapsed_time:.2f}")
 
@@ -519,7 +518,7 @@ def get_neighbours(
 @app.post("/graph_query")
 def graph_query(
     document_names: str,
-    email,
+    email: str = "anonymous",
     uri: str=NEO4J_URI,
     database: str=NEO4J_DATABASE,
     userName: str=NEO4J_USER,
@@ -538,7 +537,7 @@ def graph_query(
 
         elapsed_time = time.time() - start
 
-        logger.log_struct({
+        logger.info({
             'api_name': 'graph_query',
             'db_url': uri,
             'userName': userName,
@@ -547,7 +546,7 @@ def graph_query(
             'logging_time': formatted_time(datetime.now(timezone.utc)),
             'elapsed_api_time': f'{elapsed_time:.2f}',
             'email': email
-        }, "INFO")
+        })
 
         return create_api_response("Success", data=result, message=f"Total elapsed API time {elapsed_time:.2f}")
 
@@ -561,7 +560,7 @@ def graph_query(
 @app.post("/clear_chat_bot")
 def clear_chat_bot(
     session_id,
-    email,
+    email: str = "anonymous",
     uri=NEO4J_URI,
     userName=NEO4J_USER,
     password=NEO4J_PASSWORD,
@@ -575,7 +574,7 @@ def clear_chat_bot(
 
         elapsed_time = time.time() - start
 
-        logger.log_struct({
+        logger.info({
             'api_name': 'clear_chat_bot',
             'db_url': uri,
             'userName': userName,
@@ -584,7 +583,7 @@ def clear_chat_bot(
             'logging_time': formatted_time(datetime.now(timezone.utc)),
             'elapsed_api_time': f'{elapsed_time:.2f}',
             'email': email
-        }, "INFO")
+        })
 
         return create_api_response("Success", data=result)
 
@@ -596,7 +595,7 @@ def clear_chat_bot(
         gc.collect()
             
 @app.post("/connect")
-def connect(email, uri=NEO4J_URI, userName=NEO4J_USER, password=NEO4J_PASSWORD, database=NEO4J_DATABASE):
+def connect(email: str = "anonymous", uri=NEO4J_URI, userName=NEO4J_USER, password=NEO4J_PASSWORD, database=NEO4J_DATABASE):
     try:
         start = time.time()
         graph = create_graph_database_connection(uri, userName, password, database)
@@ -604,7 +603,7 @@ def connect(email, uri=NEO4J_URI, userName=NEO4J_USER, password=NEO4J_PASSWORD, 
         end = time.time()
         elapsed_time = end - start
         json_obj = {'api_name':'connect','db_url':uri, 'userName':userName, 'database':database, 'count':1, 'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time':f'{elapsed_time:.2f}','email':email}
-        logger.log_struct(json_obj, "INFO")
+        logger.info(json_obj)
         result['elapsed_api_time'] = f'{elapsed_time:.2f}'
         return create_api_response('Success',data=result)
     except Exception as e:
@@ -615,17 +614,17 @@ def connect(email, uri=NEO4J_URI, userName=NEO4J_USER, password=NEO4J_PASSWORD, 
         return create_api_response(job_status, message=message, error=error_message)
 
 @app.post("/upload")
-def upload_large_file_into_chunks(email,
-                                        chunkNumber, 
-                                        totalChunks, 
-                                        originalname, 
-                                        model, 
-                                        file:UploadFile = File(...),
-                                        uri=NEO4J_URI, 
-                                        userName=NEO4J_USER, 
-                                        password=NEO4J_PASSWORD, 
-                                        database=NEO4J_DATABASE,
-                                        ):
+def upload_large_file_into_chunks(chunkNumber, 
+                                    totalChunks, 
+                                    originalname, 
+                                    email: str = "anonymous",
+                                    model=MODEL, 
+                                    file:UploadFile = File(...),
+                                    uri=NEO4J_URI, 
+                                    userName=NEO4J_USER, 
+                                    password=NEO4J_PASSWORD, 
+                                    database=NEO4J_DATABASE,
+                                    ):
     try:
         start = time.time()
         graph = create_graph_database_connection(uri, userName, password, database)
@@ -635,7 +634,7 @@ def upload_large_file_into_chunks(email,
         if int(chunkNumber) == int(totalChunks):
             json_obj = {'api_name':'upload','db_url':uri,'userName':userName, 'database':database, 'chunkNumber':chunkNumber,'totalChunks':totalChunks,
                                 'original_file_name':originalname,'model':model, 'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time':f'{elapsed_time:.2f}','email':email}
-            logger.log_struct(json_obj, "INFO")
+            logger.info(json_obj)
         if int(chunkNumber) == int(totalChunks):
             return create_api_response('Success',data=result, message='Source Node Created Successfully')
         else:
@@ -653,7 +652,7 @@ def upload_large_file_into_chunks(email,
         gc.collect()
             
 @app.post("/schema")
-def get_structured_schema(email, uri=NEO4J_URI, userName=NEO4J_USER, password=NEO4J_PASSWORD, database=NEO4J_DATABASE):
+def get_structured_schema(email: str = "anonymous", uri=NEO4J_URI, userName=NEO4J_USER, password=NEO4J_PASSWORD, database=NEO4J_DATABASE):
     try:
         start = time.time()
         result = get_labels_and_relationtypes(uri, userName, password, database)
@@ -661,7 +660,7 @@ def get_structured_schema(email, uri=NEO4J_URI, userName=NEO4J_USER, password=NE
         elapsed_time = end - start
         logging.info(f'Schema result from DB: {result}')
         json_obj = {'api_name':'schema','db_url':uri, 'userName':userName, 'database':database, 'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time':f'{elapsed_time:.2f}','email':email}
-        logger.log_struct(json_obj, "INFO")
+        logger.info(json_obj)
         return create_api_response('Success', data=result,message=f"Total elapsed API time {elapsed_time:.2f}")
     except Exception as e:
         message="Unable to get the labels and relationtypes from neo4j database"
@@ -683,7 +682,12 @@ def encode_password(pwd):
     return encoded_pwd_bytes
 
 @app.get("/update_extract_status/{file_name}")
-def update_extract_status(request: Request, file_name: str, uri:str=NEO4J_URI, userName:str=NEO4J_USER, password:str=NEO4J_PASSWORD, database:str=NEO4J_DATABASE):
+def update_extract_status(request: Request, 
+                          file_name: str, 
+                          uri:str=NEO4J_URI, 
+                          userName:str=NEO4J_USER, 
+                          password:str=NEO4J_PASSWORD, 
+                          database:str=NEO4J_DATABASE):
     def generate():
         status = ''
         
@@ -735,7 +739,7 @@ def update_extract_status(request: Request, file_name: str, uri:str=NEO4J_URI, u
 def delete_document_and_entities(filenames,
                                        source_types,
                                        deleteEntities,
-                                       email,
+                                       email: str = "anonymous",
                                        uri=NEO4J_URI, 
                                        userName=NEO4J_USER, 
                                        password=NEO4J_PASSWORD, 
@@ -751,7 +755,7 @@ def delete_document_and_entities(filenames,
         elapsed_time = end - start
         json_obj = {'api_name':'delete_document_and_entities','db_url':uri, 'userName':userName, 'database':database, 'filenames':filenames,'deleteEntities':deleteEntities,
                             'source_types':source_types, 'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time':f'{elapsed_time:.2f}','email':email}
-        logger.log_struct(json_obj, "INFO")
+        logger.info(json_obj)
         return create_api_response('Success',message=message)
     except Exception as e:
         job_status = "Failed"
@@ -763,7 +767,11 @@ def delete_document_and_entities(filenames,
         gc.collect()
 
 @app.get('/document_status/{file_name}')
-def get_document_status(file_name, url, userName, password, database):
+def get_document_status(file_name, 
+                        url, 
+                        userName=NEO4J_USER, 
+                          password=NEO4J_PASSWORD, 
+                          database=NEO4J_DATABASE):
     decoded_password = decode_password(password)
    
     try:
@@ -803,7 +811,13 @@ def get_document_status(file_name, url, userName, password, database):
         return create_api_response('Failed',message=message)
     
 @app.post("/cancelled_job")
-def cancelled_job(uri, userName, password, database, filenames, source_types,email):
+def cancelled_job(uri, 
+                  filenames, 
+                  source_types,
+                  userName=NEO4J_USER, 
+                          password=NEO4J_PASSWORD, 
+                          database=NEO4J_DATABASE,
+                          email:str = "anonymous"):
     try:
         start = time.time()
         graph = create_graph_database_connection(uri, userName, password, database)
@@ -812,7 +826,7 @@ def cancelled_job(uri, userName, password, database, filenames, source_types,ema
         elapsed_time = end - start
         json_obj = {'api_name':'cancelled_job','db_url':uri, 'userName':userName, 'database':database, 'filenames':filenames,
                             'source_types':source_types, 'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time':f'{elapsed_time:.2f}','email':email}
-        logger.log_struct(json_obj, "INFO")
+        logger.info(json_obj)
         return create_api_response('Success',message=result)
     except Exception as e:
         job_status = "Failed"
@@ -824,14 +838,18 @@ def cancelled_job(uri, userName, password, database, filenames, source_types,ema
         gc.collect()
 
 @app.post("/populate_graph_schema")
-def populate_graph_schema(input_text, model, is_schema_description_checked,is_local_storage,email):
+def populate_graph_schema(input_text, 
+                          is_schema_description_checked,
+                          is_local_storage,
+                          model=MODEL, 
+                          email: str = "anonymous"):
     try:
         start = time.time()
         result = populate_graph_schema_from_text(input_text, model, is_schema_description_checked, is_local_storage)
         end = time.time()
         elapsed_time = end - start
         json_obj = {'api_name':'populate_graph_schema', 'model':model, 'is_schema_description_checked':is_schema_description_checked, 'input_text':input_text, 'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time':f'{elapsed_time:.2f}','email':email}
-        logger.log_struct(json_obj, "INFO")
+        logger.info(json_obj)
         return create_api_response('Success',data=result)
     except Exception as e:
         job_status = "Failed"
@@ -843,7 +861,11 @@ def populate_graph_schema(input_text, model, is_schema_description_checked,is_lo
         gc.collect()
         
 @app.post("/get_unconnected_nodes_list")
-def get_unconnected_nodes_list(uri, userName, password, database,email):
+def get_unconnected_nodes_list(uri, 
+                               userName=NEO4J_USER, 
+                          password=NEO4J_PASSWORD, 
+                          database=NEO4J_DATABASE,
+                          email:str = "anonymous"):
     try:
         start = time.time()
         graph = create_graph_database_connection(uri, userName, password, database)
@@ -852,7 +874,7 @@ def get_unconnected_nodes_list(uri, userName, password, database,email):
         end = time.time()
         elapsed_time = end - start
         json_obj = {'api_name':'get_unconnected_nodes_list','db_url':uri, 'userName':userName, 'database':database, 'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time':f'{elapsed_time:.2f}','email':email}
-        logger.log_struct(json_obj, "INFO")
+        logger.info(json_obj)
         return create_api_response('Success',data=nodes_list,message=total_nodes)
     except Exception as e:
         job_status = "Failed"
@@ -864,7 +886,12 @@ def get_unconnected_nodes_list(uri, userName, password, database,email):
         gc.collect()
         
 @app.post("/delete_unconnected_nodes")
-def delete_orphan_nodes(uri, userName, password, database,unconnected_entities_list,email):
+def delete_orphan_nodes(uri, 
+                        unconnected_entities_list,
+                        userName=NEO4J_USER, 
+                          password=NEO4J_PASSWORD, 
+                          database=NEO4J_DATABASE,
+                          email:str = "anonymous"):
     try:
         start = time.time()
         graph = create_graph_database_connection(uri, userName, password, database)
@@ -873,7 +900,7 @@ def delete_orphan_nodes(uri, userName, password, database,unconnected_entities_l
         end = time.time()
         elapsed_time = end - start
         json_obj = {'api_name':'delete_unconnected_nodes','db_url':uri, 'userName':userName, 'database':database,'unconnected_entities_list':unconnected_entities_list, 'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time':f'{elapsed_time:.2f}','email':email}
-        logger.log_struct(json_obj, "INFO")
+        logger.info(json_obj)
         return create_api_response('Success',data=result,message="Unconnected entities delete successfully")
     except Exception as e:
         job_status = "Failed"
@@ -885,7 +912,11 @@ def delete_orphan_nodes(uri, userName, password, database,unconnected_entities_l
         gc.collect()
         
 @app.post("/get_duplicate_nodes")
-def get_duplicate_nodes(uri, userName, password, database,email):
+def get_duplicate_nodes(uri, 
+                        userName=NEO4J_USER, 
+                          password=NEO4J_PASSWORD, 
+                          database=NEO4J_DATABASE,
+                          email:str = "anonymous"):
     try:
         start = time.time()
         graph = create_graph_database_connection(uri, userName, password, database)
@@ -894,7 +925,7 @@ def get_duplicate_nodes(uri, userName, password, database,email):
         end = time.time()
         elapsed_time = end - start
         json_obj = {'api_name':'get_duplicate_nodes','db_url':uri,'userName':userName, 'database':database, 'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time':f'{elapsed_time:.2f}','email':email}
-        logger.log_struct(json_obj, "INFO")
+        logger.info(json_obj)
         return create_api_response('Success',data=nodes_list, message=total_nodes)
     except Exception as e:
         job_status = "Failed"
@@ -906,7 +937,12 @@ def get_duplicate_nodes(uri, userName, password, database,email):
         gc.collect()
         
 @app.post("/merge_duplicate_nodes")
-def merge_duplicate_nodes(uri, userName, password, database,duplicate_nodes_list,email):
+def merge_duplicate_nodes(uri, 
+                          duplicate_nodes_list,
+                          userName=NEO4J_USER, 
+                          password=NEO4J_PASSWORD, 
+                          database=NEO4J_DATABASE,
+                          email:str = "anonymous"):
     try:
         start = time.time()
         graph = create_graph_database_connection(uri, userName, password, database)
@@ -916,7 +952,7 @@ def merge_duplicate_nodes(uri, userName, password, database,duplicate_nodes_list
         elapsed_time = end - start
         json_obj = {'api_name':'merge_duplicate_nodes','db_url':uri, 'userName':userName, 'database':database,
                             'duplicate_nodes_list':duplicate_nodes_list, 'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time':f'{elapsed_time:.2f}','email':email}
-        logger.log_struct(json_obj, "INFO")
+        logger.info(json_obj)
         return create_api_response('Success',data=result,message="Duplicate entities merged successfully")
     except Exception as e:
         job_status = "Failed"
@@ -928,7 +964,12 @@ def merge_duplicate_nodes(uri, userName, password, database,duplicate_nodes_list
         gc.collect()
         
 @app.post("/drop_create_vector_index")
-def drop_create_vector_index(uri, userName, password, database, isVectorIndexExist,email):
+def drop_create_vector_index(uri, 
+                             isVectorIndexExist,
+                             userName=NEO4J_USER, 
+                             password=NEO4J_PASSWORD, 
+                             database=NEO4J_DATABASE, 
+                             email: str = "anonymous"):
     try:
         start = time.time()
         graph = create_graph_database_connection(uri, userName, password, database)
@@ -938,7 +979,7 @@ def drop_create_vector_index(uri, userName, password, database, isVectorIndexExi
         elapsed_time = end - start
         json_obj = {'api_name':'drop_create_vector_index', 'db_url':uri, 'userName':userName, 'database':database,
                             'isVectorIndexExist':isVectorIndexExist, 'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time':f'{elapsed_time:.2f}','email':email}
-        logger.log_struct(json_obj, "INFO")
+        logger.info(json_obj)
         return create_api_response('Success',message=result)
     except Exception as e:
         job_status = "Failed"
@@ -950,7 +991,13 @@ def drop_create_vector_index(uri, userName, password, database, isVectorIndexExi
         gc.collect()
         
 @app.post("/retry_processing")
-def retry_processing(uri, userName, password, database, file_name, retry_condition, email):
+def retry_processing(uri, 
+                     file_name, 
+                     retry_condition, 
+                     userName=NEO4J_USER, 
+                     password=NEO4J_PASSWORD, 
+                     database=NEO4J_DATABASE, 
+                     email: str = "anonymous"):
     try:
         start = time.time()
         graph = create_graph_database_connection(uri, userName, password, database)
@@ -959,7 +1006,7 @@ def retry_processing(uri, userName, password, database, file_name, retry_conditi
         elapsed_time = end - start
         json_obj = {'api_name':'retry_processing', 'db_url':uri, 'userName':userName, 'database':database, 'file_name':file_name,'retry_condition':retry_condition,
                             'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time':f'{elapsed_time:.2f}','email':email}
-        logger.log_struct(json_obj, "INFO")
+        logger.info(json_obj)
         if chunks[0]['text'] is None or chunks[0]['text']=="" or not chunks :
             return create_api_response('Success',message=f"Chunks are not created for the file{file_name}. Please upload again the file to re-process.",data=chunks)
         else:
@@ -978,7 +1025,7 @@ def retry_processing(uri, userName, password, database, file_name, retry_conditi
 def fetch_chunktext(
     document_name: str,
    page_no: int,
-   email,
+   email: str = "anonymous",
    uri: str = NEO4J_URI,
    database: str = NEO4J_DATABASE,
    userName: str = NEO4J_USER,
@@ -1007,7 +1054,7 @@ def fetch_chunktext(
            'elapsed_api_time': f'{elapsed_time:.2f}',
            'email': email
        }
-       logger.log_struct(json_obj, "INFO")
+       logger.info(json_obj)
        return create_api_response('Success', data=result, message=f"Total elapsed API time {elapsed_time:.2f}")
    except Exception as e:
        job_status = "Failed"
@@ -1018,47 +1065,69 @@ def fetch_chunktext(
    finally:
        gc.collect()
 
-
 @app.post("/backend_connection_configuration")
 def backend_connection_configuration():
+    """
+    Checks the backend Neo4j graph database connection and returns its status along with vector index metadata.
+    """
     try:
         start = time.time()
+        
+        # Load connection values from environment/config
         uri = NEO4J_URI
-        username= NEO4J_USER
-        database= NEO4J_DATABASE
-        password= NEO4J_PASSWORD
+        username = NEO4J_USER
+        database = NEO4J_DATABASE
+        password = NEO4J_PASSWORD
 
+        # Validate connection parameters
         if all([uri, username, database, password]):
-            graph = Neo4jGraph()
-            logging.info(f'login connection status of object: {graph}')
-            if graph is not None:
-                graph_connection = True        
+            graph = Neo4jGraph(
+                url=uri,
+                username=username,
+                password=password,
+                database=database,
+                refresh_schema=False,
+                sanitize=True
+            )
+
+            logging.info(f'Graph object initialized: {graph}')
+
+            if graph:
+                graph_connection = True
                 graphDb_data_Access = graphDBdataAccess(graph)
                 result = graphDb_data_Access.connection_check_and_get_vector_dimensions(database)
-                result['uri'] = uri
-                end = time.time()
-                elapsed_time = end - start
-                result['api_name'] = 'backend_connection_configuration'
-                result['elapsed_api_time'] = f'{elapsed_time:.2f}'
-                result['graph_connection'] = f'{graph_connection}',
-                result['connection_from'] = 'backendAPI'
-                logger.log_struct(result, "INFO")
-                return create_api_response('Success',message=f"Backend connection successful",data=result)
-        else:
-            graph_connection = False
-            return create_api_response('Success',message=f"Backend connection is not successful",data=graph_connection)
+
+                result.update({
+                    'uri': uri,
+                    'api_name': 'backend_connection_configuration',
+                    'elapsed_api_time': f"{time.time() - start:.2f}",
+                    'graph_connection': graph_connection,
+                    'connection_from': 'backendAPI'
+                })
+
+                logger.info(result)
+                return create_api_response('Success', message="Backend connection successful", data=result)
+
+        # Incomplete config case
+        graph_connection = False
+        return create_api_response('Success', message="Backend connection not successful", data=graph_connection)
+
     except Exception as e:
         graph_connection = False
-        job_status = "Failed"
-        message="Unable to connect knowledge_graph DB"
         error_message = str(e)
-        logging.exception(f'{error_message}')
-        return create_api_response(job_status, message=message, error=error_message.rstrip('.') + ', or fill from the login dialog.', data=graph_connection)
+        logging.exception(error_message)
+        return create_api_response(
+            "Failed",
+            message="Unable to connect to knowledge graph DB",
+            error=error_message.rstrip('.') + ', or fill from the login dialog.',
+            data=graph_connection
+        )
+
     finally:
         gc.collect()
     
 @app.post("/schema_visualization")
-def get_schema_visualization(uri, userName, password, database):
+def get_schema_visualization(uri=NEO4J_URI, userName=NEO4J_USER, password=NEO4J_PASSWORD, database=NEO4J_DATABASE):
     try:
         start = time.time()
         result = visualize_schema(
@@ -1072,7 +1141,7 @@ def get_schema_visualization(uri, userName, password, database):
         elapsed_time = end - start
         logging.info(f'Schema result from DB: {result}')
         json_obj = {'api_name':'schema_visualization','db_url':uri, 'userName':userName, 'database':database, 'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time':f'{elapsed_time:.2f}'}
-        logger.log_struct(json_obj, "INFO")
+        logger.info(json_obj)
         return create_api_response('Success', data=result,message=f"Total elapsed API time {elapsed_time:.2f}")
     except Exception as e:
         message="Unable to get schema visualization from neo4j database"

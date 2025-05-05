@@ -30,6 +30,12 @@ CHUNK_SIZE = 300
 CHUNK_OVERLAP = 50
 k = 3
 
+NEO4J_URI = os.getenv("NEO4J_URI")
+NEO4J_USER = os.getenv("NEO4J_USER")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
+NEO4J_DATABASE = os.getenv("NEO4J_DATABASE")
+MODEL=os.getenv("MODEL")
+
 def check_url_source(source_type, yt_url:str=None, wiki_query:str=None):
     language=''
     try:
@@ -75,15 +81,39 @@ def get_chunk_and_graph_document(graph_documents, chunk_id_chunk_doc_list):
         for chunk_id in graph_doc.source.metadata['combined_chunk_ids']
     ] 
                  
-def create_graph_database_connection(uri, userName, password, database):
-  enable_user_agent = os.environ.get("ENABLE_USER_AGENT", "False").lower() in ("true", "1", "yes")
-  if enable_user_agent:
-    graph = Neo4jGraph(url=uri, database=database, username=userName, password=password, refresh_schema=False, sanitize=True,driver_config={'user_agent':os.environ.get('NEO4J_USER_AGENT')})  
-  else:
-    graph = Neo4jGraph(url=uri, database=database, username=userName, password=password, refresh_schema=False, sanitize=True)    
-  return graph
+def create_graph_database_connection(uri, 
+                                     userName, 
+                                     password, 
+                                     database):
+    # Check if user agent customization is enabled via environment variable
+    enable_user_agent = os.environ.get("ENABLE_USER_AGENT", "False").lower() in ("true", "1", "yes")
 
-def load_embedding_model(embedding_model_name: str):
+    # If enabled, create Neo4jGraph connection with a custom user agent from env
+    if enable_user_agent:
+        graph = Neo4jGraph(
+            url=uri,
+            database=database,
+            username=userName,
+            password=password,
+            refresh_schema=False,
+            sanitize=True,
+            driver_config={'user_agent': os.environ.get('NEO4J_USER_AGENT')}
+        )
+    else:
+        # Otherwise, create Neo4jGraph connection without custom user agent
+        graph = Neo4jGraph(
+            url=uri,
+            database=database,
+            username=userName,
+            password=password,
+            refresh_schema=False,
+            sanitize=True
+        )
+    
+    # Return the connected Neo4j graph object
+    return graph
+
+def load_embedding_model(embedding_model_name: str = os.getenv("EMBEDDING_MODEL_SERVER")):
     if embedding_model_name == "openai":
         embeddings = OpenAIEmbeddings()
         dimension = 1536

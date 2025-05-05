@@ -351,7 +351,7 @@ def create_community_summaries(gds, model):
 
 def create_community_embeddings(gds):
     try:
-        embedding_model = os.getenv('EMBEDDING_MODEL')
+        embedding_model = os.getenv("EMBEDDING_MODEL_SERVER")
         embeddings, dimension = load_embedding_model(embedding_model)
         logging.info(f"Embedding model '{embedding_model}' loaded successfully.")
         

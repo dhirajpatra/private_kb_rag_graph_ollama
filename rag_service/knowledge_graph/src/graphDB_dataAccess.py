@@ -236,7 +236,7 @@ class graphDBdataAccess:
                                                     count(c.embedding) as hasEmbedding
                                 """)
         
-        embedding_model = os.getenv('EMBEDDING_MODEL')
+        embedding_model = os.getenv("EMBEDDING_MODEL_SERVER")
         embeddings, application_dimension = load_embedding_model(embedding_model)
         logging.info(f'embedding model:{embeddings} and dimesion:{application_dimension}')
 
@@ -468,7 +468,7 @@ class graphDBdataAccess:
         """
         drop and create the vector index when vector index dimesion are different.
         """
-        embedding_model = os.getenv('EMBEDDING_MODEL')
+        embedding_model = os.getenv("EMBEDDING_MODEL_SERVER")
         embeddings, dimension = load_embedding_model(embedding_model)
         
         if isVectorIndexExist == 'true':

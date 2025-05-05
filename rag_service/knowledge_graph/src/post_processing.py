@@ -131,7 +131,7 @@ def create_fulltext(driver,type):
 
 def create_vector_fulltext_indexes(uri, username, password, database):
     types = ["entities", "hybrid"]
-    embedding_model = os.getenv('EMBEDDING_MODEL')
+    embedding_model = os.getenv("EMBEDDING_MODEL_SERVER")
     embeddings, dimension = load_embedding_model(embedding_model)
     if not dimension:
         dimension = CHUNK_VECTOR_EMBEDDING_DIMENSION

@@ -22,18 +22,18 @@ COLLECTION_NAME = "uploaded-docs"
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
 OLLAMA_SERVER_URL = os.getenv("BASE_URL")
 BLOG_URLS = [
-    "https://developers.google.com/machine-learning/resources/prompt-eng",
+    "https://en.wikipedia.org/wiki/Indian_Penal_Code",
 ]
 CHUNK_SIZE = 300
 CHUNK_OVERLAP = 50
 k = 3
 
-def is_chroma_db_initialized(persist_dir: str) -> bool:
+def is_chroma_db_initialized(persist_dir: str) -> list[str]:
     """Check if ChromaDB is properly initialized after saving."""
     db_file = os.path.join(persist_dir, 'chroma.sqlite3')
     if not os.path.exists(db_file):
-        logging.info(f"ChromaDB file not found in retriever tool at {db_file}.")
-        return False
+        logging.info(f"ChromaDB file not found at {db_file}.")
+        return []
 
     # Try to find a subdirectory that looks like a Chroma collection directory
     collection_dirs = [
@@ -43,12 +43,17 @@ def is_chroma_db_initialized(persist_dir: str) -> bool:
 
     if not collection_dirs:
         logging.info("No Chroma collection directories found.")
-        return False
+        return []
 
-    # Check for the existence of essential files within the first collection directory found
-    collection_path = os.path.join(persist_dir, collection_dirs[0])
+    # Check for required files in each collection
     required_collection_files = ['header.bin', 'length.bin', 'link_lists.bin']
-    return all(os.path.exists(os.path.join(collection_path, f)) for f in required_collection_files)
+    valid_collections = []
+    for collection_dir in collection_dirs:
+        collection_path = os.path.join(persist_dir, collection_dir)
+        if all(os.path.exists(os.path.join(collection_path, f)) for f in required_collection_files):
+            valid_collections.append(collection_dir)
+
+    return valid_collections
 
 def initialize_retriever():
     # Configure Ollama embeddings with correct server URL
@@ -90,31 +95,31 @@ def initialize_retriever():
                     logging.error(f"Failed to load ChromaDB for collection '{collection_name}': {e}")
         except Exception as e:
             logging.error(f"Error loading ChromaDB collections: {e}")
-    
-    # Create new vectorstore if needed
-    logging.info("Creating new ChromaDB in retrierver tool at vectorstore")
-    try:
-        loader = WebBaseLoader(BLOG_URLS)
-        
-        docs = loader.load()
-        
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=CHUNK_SIZE,
-            chunk_overlap=CHUNK_OVERLAP
-        )
-        splits = splitter.split_documents(docs)
-        logging.info(f"Number of splits: {len(splits)}")
-        # Create and return the vectorstore - persistence is automatic
-        vectorstore = Chroma.from_documents(
-            documents=splits,
-            embedding=cached_embeddings,
-            collection_name=COLLECTION_NAME,
-            persist_directory=PERSIST_DIR
-        )
-        logging.info(f"Vectorstore created successfully: {vectorstore}")
-        return vectorstore.as_retriever(search_kwargs={"k": k})
-    except Exception as e:
-        logging.error(f"Failed to create new ChromaDB: {e}")
-        raise
+    else:
+        # Create new vectorstore if needed
+        logging.info("Creating new ChromaDB vectorstore")
+        try:
+            loader = WebBaseLoader(BLOG_URLS)
+            
+            docs = loader.load()
+            
+            splitter = RecursiveCharacterTextSplitter(
+                chunk_size=CHUNK_SIZE,
+                chunk_overlap=CHUNK_OVERLAP
+            )
+            splits = splitter.split_documents(docs)
+            
+            # Create and return the vectorstore - persistence is automatic
+            vectorstore = Chroma.from_documents(
+                documents=splits,
+                embedding=cached_embeddings,
+                collection_name=COLLECTION_NAME,
+                persist_directory=PERSIST_DIR
+            )
+            
+            return vectorstore.as_retriever(search_kwargs={"k": k})
+        except Exception as e:
+            logging.error(f"Failed to create new ChromaDB: {e}")
+            raise
 
 retriever = initialize_retriever()

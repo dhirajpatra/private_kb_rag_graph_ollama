@@ -154,7 +154,7 @@ def create_source_knowledge_graph_url(
 
         func = handlers[source_type]
         args = (graph, model, source, source_type)
-        lst_file_name, success_count, failed_count = await asyncio.to_thread(func, *args)
+        lst_file_name, success_count, failed_count = func(*args)
 
         elapsed_time = time.time() - start
         message = f"Source Node created successfully for source type: {source_type} and source: {source}"
@@ -227,13 +227,13 @@ def extract_knowledge_graph_from_file(
 
         if source_type == 'local file':
             path = validate_file_path(MERGED_DIR, file_name)
-            uri_latency, result = await extract_graph_from_file_local_file(uri, userName, password, database, model, path, file_name, allowedNodes, allowedRelationship, token_chunk_size, chunk_overlap, chunks_to_combine, retry_condition, additional_instructions)
+            uri_latency, result = extract_graph_from_file_local_file(uri, userName, password, database, model, path, file_name, allowedNodes, allowedRelationship, token_chunk_size, chunk_overlap, chunks_to_combine, retry_condition, additional_instructions)
         elif source_type == 'web-url':
-            uri_latency, result = await extract_graph_from_web_page(uri, userName, password, database, model, source_url, file_name, allowedNodes, allowedRelationship, token_chunk_size, chunk_overlap, chunks_to_combine, retry_condition, additional_instructions)
+            uri_latency, result = extract_graph_from_web_page(uri, userName, password, database, model, source_url, file_name, allowedNodes, allowedRelationship, token_chunk_size, chunk_overlap, chunks_to_combine, retry_condition, additional_instructions)
         elif source_type == 'youtube' and source_url:
-            uri_latency, result = await extract_graph_from_file_youtube(uri, userName, password, database, model, source_url, file_name, allowedNodes, allowedRelationship, token_chunk_size, chunk_overlap, chunks_to_combine, retry_condition, additional_instructions)
+            uri_latency, result = extract_graph_from_file_youtube(uri, userName, password, database, model, source_url, file_name, allowedNodes, allowedRelationship, token_chunk_size, chunk_overlap, chunks_to_combine, retry_condition, additional_instructions)
         elif source_type == 'Wikipedia' and wiki_query:
-            uri_latency, result = await extract_graph_from_file_Wikipedia(uri, userName, password, database, model, wiki_query, language, file_name, allowedNodes, allowedRelationship, token_chunk_size, chunk_overlap, chunks_to_combine, retry_condition, additional_instructions)
+            uri_latency, result = extract_graph_from_file_Wikipedia(uri, userName, password, database, model, wiki_query, language, file_name, allowedNodes, allowedRelationship, token_chunk_size, chunk_overlap, chunks_to_combine, retry_condition, additional_instructions)
         else:
             return create_api_response('Failed', message='Invalid source_type')
 
@@ -303,7 +303,7 @@ def get_source_list(
     """Returns list of sources from the graph database."""
     try:
         start = time.time()
-        result = await asyncio.to_thread(get_source_list_from_graph, uri, userName, password, database)
+        result = get_source_list_from_graph(uri, userName, password, database)
         elapsed = time.time() - start
         logger.log_struct({
             'api_name': 'sources_list', 'db_url': uri, 'userName': userName,
@@ -332,23 +332,23 @@ def post_processing(
         start = time.time()
 
         if "materialize_text_chunk_similarities" in tasks:
-            await asyncio.to_thread(update_graph, graph)
+            result = get_source_list_from_graph(uri, userName, password, database)
             logging.info("Updated KNN Graph")
 
         if "enable_hybrid_search_and_fulltext_search_in_bloom" in tasks:
-            await asyncio.to_thread(create_vector_fulltext_indexes, uri=uri, username=userName, password=password, database=database)
+            create_vector_fulltext_indexes(uri=uri, username=userName, password=password, database=database)
             logging.info("Full Text index created")
 
         if os.environ.get("ENTITY_EMBEDDING", "False").upper() == "TRUE" and "materialize_entity_similarities" in tasks:
-            await asyncio.to_thread(create_entity_embedding, graph)
+            create_entity_embedding(graph)
             logging.info("Entity Embeddings created")
 
         if "graph_schema_consolidation" in tasks:
-            await asyncio.to_thread(graph_schema_consolidation, graph)
+            graph_schema_consolidation,(graph)
             logging.info("Updated nodes and relationship labels")
 
         if "enable_communities" in tasks:
-            await asyncio.to_thread(create_communities, uri, userName, password, database)
+            create_communities(uri, userName, password, database)
             logging.info("Created communities")
 
         graph = create_graph_database_connection(uri, userName, password, database)
@@ -401,8 +401,7 @@ def chat_bot(
         graph_access = graphDBdataAccess(graph)
         write_access = graph_access.check_account_access(database=database)
 
-        result = await asyncio.to_thread(
-            QA_RAG,
+        result = QA_RAG(
             graph=graph,
             model=model,
             question=question,
@@ -442,8 +441,7 @@ def chunk_entities(
     try:
         start = time.time()
 
-        result = await asyncio.to_thread(
-            get_entities_from_chunkids,
+        result = get_entities_from_chunkids(
             nodedetails=nodedetails,
             entities=entities,
             mode=mode,
@@ -489,8 +487,7 @@ def get_neighbours(
     try:
         start = time.time()
 
-        result = await asyncio.to_thread(
-            get_neighbour_nodes,
+        result = get_neighbour_nodes(
             uri=uri,
             username=userName,
             password=password,
@@ -531,8 +528,7 @@ def graph_query(
     try:
         start = time.time()
 
-        result = await asyncio.to_thread(
-            get_graph_results,
+        result = get_graph_results(
             uri=uri,
             username=userName,
             password=password,
@@ -575,7 +571,7 @@ def clear_chat_bot(
         start = time.time()
 
         graph = create_graph_database_connection(uri, userName, password, database)
-        result = await asyncio.to_thread(clear_chat_history, graph=graph, session_id=session_id)
+        result = clear_chat_history(graph=graph, session_id=session_id)
 
         elapsed_time = time.time() - start
 
@@ -604,7 +600,7 @@ def connect(email, uri=NEO4J_URI, userName=NEO4J_USER, password=NEO4J_PASSWORD, 
     try:
         start = time.time()
         graph = create_graph_database_connection(uri, userName, password, database)
-        result = await asyncio.to_thread(connection_check_and_get_vector_dimensions, graph, database)
+        result = connection_check_and_get_vector_dimensions(graph, database)
         end = time.time()
         elapsed_time = end - start
         json_obj = {'api_name':'connect','db_url':uri, 'userName':userName, 'database':database, 'count':1, 'logging_time': formatted_time(datetime.now(timezone.utc)), 'elapsed_api_time':f'{elapsed_time:.2f}','email':email}
@@ -633,7 +629,7 @@ def upload_large_file_into_chunks(email,
     try:
         start = time.time()
         graph = create_graph_database_connection(uri, userName, password, database)
-        result = await asyncio.to_thread(upload_file, graph, model, file, chunkNumber, totalChunks, originalname, uri, CHUNK_DIR, MERGED_DIR)
+        result = upload_file(graph, model, file, chunkNumber, totalChunks, originalname, uri, CHUNK_DIR, MERGED_DIR)
         end = time.time()
         elapsed_time = end - start
         if int(chunkNumber) == int(totalChunks):
@@ -660,7 +656,7 @@ def upload_large_file_into_chunks(email,
 def get_structured_schema(email, uri=NEO4J_URI, userName=NEO4J_USER, password=NEO4J_PASSWORD, database=NEO4J_DATABASE):
     try:
         start = time.time()
-        result = await asyncio.to_thread(get_labels_and_relationtypes, uri, userName, password, database)
+        result = get_labels_and_relationtypes(uri, userName, password, database)
         end = time.time()
         elapsed_time = end - start
         logging.info(f'Schema result from DB: {result}')
@@ -704,7 +700,7 @@ def update_extract_status(request: Request, file_name: str, uri:str=NEO4J_URI, u
         graphDb_data_Access = graphDBdataAccess(graph)
         while True:
             try:
-                if await request.is_disconnected():
+                if request.is_disconnected():
                     logging.info(" SSE Client disconnected")
                     break
                 # get the current status of document node
@@ -749,7 +745,7 @@ def delete_document_and_entities(filenames,
         start = time.time()
         graph = create_graph_database_connection(uri, userName, password, database)
         graphDb_data_Access = graphDBdataAccess(graph)
-        files_list_size = await asyncio.to_thread(graphDb_data_Access.delete_file_from_graph, filenames, source_types, deleteEntities, MERGED_DIR, uri)
+        files_list_size = graphDb_data_Access.delete_file_from_graph(filenames, source_types, deleteEntities, MERGED_DIR, uri)
         message = f"Deleted {files_list_size} documents with entities from database"
         end = time.time()
         elapsed_time = end - start
@@ -967,7 +963,7 @@ def retry_processing(uri, userName, password, database, file_name, retry_conditi
         if chunks[0]['text'] is None or chunks[0]['text']=="" or not chunks :
             return create_api_response('Success',message=f"Chunks are not created for the file{file_name}. Please upload again the file to re-process.",data=chunks)
         else:
-            await asyncio.to_thread(set_status_retry, graph,file_name,retry_condition)
+            set_status_retry(graph, file_name, retry_condition)
             return create_api_response('Success',message=f"Status set to Ready to Reprocess for filename : {file_name}")
     except Exception as e:
         job_status = "Failed"
@@ -990,8 +986,7 @@ def fetch_chunktext(
 ):
    try:
        start = time.time()
-       result = await asyncio.to_thread(
-           get_chunktext_results,
+       result = get_chunktext_results(
            uri=uri,
            username=userName,
            password=password,
@@ -1066,7 +1061,7 @@ def backend_connection_configuration():
 def get_schema_visualization(uri, userName, password, database):
     try:
         start = time.time()
-        result = await asyncio.to_thread(visualize_schema,
+        result = visualize_schema(
            uri=uri,
            userName=userName,
            password=password,

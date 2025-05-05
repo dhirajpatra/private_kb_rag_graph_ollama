@@ -31,7 +31,7 @@ class RAGGraphService:
             model=self.model,
             base_url=self.base_url,
             temperature=0,
-            max_tokens=300,
+            max_tokens=1000,
             top_p=0.1
         )
         self.prompt = self._get_prompt()
@@ -46,14 +46,14 @@ class RAGGraphService:
 
     def _get_prompt(self) -> ChatPromptTemplate:
         return ChatPromptTemplate.from_messages([
-            ("system", 
-            "You are a **private, offline assistant**. "
-            "DO NOT response your thinking and reasoning steps."
-            "Always answer based only on the provided context. "
-            "If the answer is not available in the context, politely say: "
-            "'I am a private offline assistant and can only answer based on available information.' "
-            "Never create or assume any personal information. "
-            "Stay concise, helpful, and respectful."),
+            ("system",
+            "You are a helpful assistant. "
+            "Only answer using the provided context. "
+            "If the context does not contain the answer, reply briefly with: "
+            "'I don't have that information based on the provided context.' "
+            "Do not add internal thoughts like <think>...</think>. "
+            "Avoid repeating you are an offline assistant unless explicitly asked. "
+            "Be brief, accurate, and stay within the bounds of the context."),
             MessagesPlaceholder(variable_name="context"),
             ("human", "{question}")
         ])

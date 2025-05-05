@@ -93,7 +93,7 @@ def get_chunk_id_as_doc_metadata(chunkId_chunkDoc_list):
     return combined_chunk_document_list
       
 
-async def get_graph_document_list(
+def get_graph_document_list(
     llm, combined_chunk_document_list, allowedNodes, allowedRelationship, additional_instructions=None
 ):
     if additional_instructions:
@@ -118,10 +118,10 @@ async def get_graph_document_list(
     if isinstance(llm,DiffbotGraphTransformer):
         graph_document_list = llm_transformer.convert_to_graph_documents(combined_chunk_document_list)
     else:
-        graph_document_list = await llm_transformer.aconvert_to_graph_documents(combined_chunk_document_list)
+        graph_document_list = llm_transformer.aconvert_to_graph_documents(combined_chunk_document_list)
     return graph_document_list
 
-async def get_graph_from_llm(model, chunkId_chunkDoc_list, allowedNodes, allowedRelationship, chunks_to_combine, additional_instructions=None):
+def get_graph_from_llm(model, chunkId_chunkDoc_list, allowedNodes, allowedRelationship, chunks_to_combine, additional_instructions=None):
     
     llm, model_name = get_llm(model)
     combined_chunk_document_list = get_combined_chunks(chunkId_chunkDoc_list, chunks_to_combine)
@@ -133,7 +133,7 @@ async def get_graph_from_llm(model, chunkId_chunkDoc_list, allowedNodes, allowed
     else:
         items = allowedRelationship.split(',')
         allowedRelationship = [tuple(items[i:i+3]) for i in range(0, len(items), 3)]
-    graph_document_list = await get_graph_document_list(
+    graph_document_list = get_graph_document_list(
         llm, combined_chunk_document_list, allowedNodes, allowedRelationship, additional_instructions
     )
     return graph_document_list

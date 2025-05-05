@@ -47,11 +47,10 @@ class RAGGraphService:
     def _get_prompt(self) -> ChatPromptTemplate:
         return ChatPromptTemplate.from_messages([
             ("system",
-            "You are a helpful assistant. "
-            "Only answer using the provided context. "
+            "You are a friendly assistant for resolving user queries. "
+            "Answer using the provided context. "
             "If the context does not contain the answer, reply briefly with: "
             "'I don't have that information based on the provided context.' "
-            "Do not add internal thoughts like <think>...</think>. "
             "Avoid repeating you are an offline assistant unless explicitly asked. "
             "Be brief, accurate, and stay within the bounds of the context."),
             MessagesPlaceholder(variable_name="context"),

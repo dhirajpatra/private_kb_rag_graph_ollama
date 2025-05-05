@@ -861,7 +861,7 @@ def populate_graph_schema(input_text,
         gc.collect()
         
 @app.post("/get_unconnected_nodes_list")
-def get_unconnected_nodes_list(uri, 
+def get_unconnected_nodes_list(uri=NEO4J_URI, 
                                userName=NEO4J_USER, 
                           password=NEO4J_PASSWORD, 
                           database=NEO4J_DATABASE,
@@ -886,8 +886,8 @@ def get_unconnected_nodes_list(uri,
         gc.collect()
         
 @app.post("/delete_unconnected_nodes")
-def delete_orphan_nodes(uri, 
-                        unconnected_entities_list,
+def delete_orphan_nodes(unconnected_entities_list,
+                        uri=NEO4J_URI, 
                         userName=NEO4J_USER, 
                           password=NEO4J_PASSWORD, 
                           database=NEO4J_DATABASE,
@@ -912,7 +912,7 @@ def delete_orphan_nodes(uri,
         gc.collect()
         
 @app.post("/get_duplicate_nodes")
-def get_duplicate_nodes(uri, 
+def get_duplicate_nodes(uri=NEO4J_URI, 
                         userName=NEO4J_USER, 
                           password=NEO4J_PASSWORD, 
                           database=NEO4J_DATABASE,
@@ -937,8 +937,8 @@ def get_duplicate_nodes(uri,
         gc.collect()
         
 @app.post("/merge_duplicate_nodes")
-def merge_duplicate_nodes(uri, 
-                          duplicate_nodes_list,
+def merge_duplicate_nodes(duplicate_nodes_list,
+                          uri=NEO4J_URI, 
                           userName=NEO4J_USER, 
                           password=NEO4J_PASSWORD, 
                           database=NEO4J_DATABASE,
@@ -964,8 +964,8 @@ def merge_duplicate_nodes(uri,
         gc.collect()
         
 @app.post("/drop_create_vector_index")
-def drop_create_vector_index(uri, 
-                             isVectorIndexExist,
+def drop_create_vector_index(isVectorIndexExist,
+                             uri=NEO4J_URI, 
                              userName=NEO4J_USER, 
                              password=NEO4J_PASSWORD, 
                              database=NEO4J_DATABASE, 
@@ -991,9 +991,9 @@ def drop_create_vector_index(uri,
         gc.collect()
         
 @app.post("/retry_processing")
-def retry_processing(uri, 
-                     file_name, 
+def retry_processing(file_name, 
                      retry_condition, 
+                     uri=NEO4J_URI, 
                      userName=NEO4J_USER, 
                      password=NEO4J_PASSWORD, 
                      database=NEO4J_DATABASE, 

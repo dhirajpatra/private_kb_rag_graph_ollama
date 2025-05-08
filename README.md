@@ -1,6 +1,6 @@
 # Private AI RAG Graph with Gemma, Ollama and LangGraph
 
-Developing a **Private AI** application running **offline** with **Gemma 1B** Edge AI model using **Ollama**, **LangGraph**, and **RAG**.
+Developing a **Private AI** application running **offline** with **Gemma 1B** or **Qwen3** model using **Ollama**, **LangGraph**, **Neo4J** graph DB and **RAG**.
 
 Summary of What We Are Doing in This Application:
 Routing user questions intelligently between:
@@ -21,6 +21,10 @@ Using structured models (BaseModel) and structured output from LLMs for safe rou
 
 End-to-end flow:
 Route ➔ Decompose ➔ Retrieve ➔ Prompt ➔ Query Graph ➔ Answer
+
+Rag Services and Knowledge Graph Services are seperate containers.
+So that when you need to create GraphDB collections or RAG vector store you can run seperate services. 
+Also vector stores in common volume. So that any services can access that.
 
 # ![RAG Graph DB based reasoning chat](./images/8.png "RAG GraphDB based deep reasoning chat")
 # ![RAG based reasoning chat](./images/6.png "RAG based deep reasoning chat")

@@ -53,36 +53,36 @@ services:
     networks:
       - rag-network
 
-  # kg_rag:
-  #   build: ./knowledge_graph
-  #   environment:
-  #     - PYTHONPATH=/app
-  #     - USER_AGENT=private-ai-rag-graph
-  #     - NEO4J_URI=bolt://neo4j:7687
-  #     - NEO4J_USER=neo4j
-  #     - NEO4J_PASSWORD=neo4j_password
-  #     - KG_CHUNK_SIZE=300
-  #     - KG_CHUNK_OVERLAP=50
-  #     - KG_MAX_TOKENS=500
-  #     - KG_ENABLE_VISUALIZATION=true
-  #   volumes:
-  #     - ./knowledge_graph:/app
-  #     - chroma_db_data:/app/chroma_db
-  #     - embedding_cache:/app/embedding_cache
-  #   working_dir: /app
-  #   ports:
-  #     - "8000:8000"
-  #   depends_on:
-  #     # - ollama_server_lite
-  #     - ollama_server
-  #     - neo4j
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '2.00'
-  #         memory: 4G
-  #   networks:
-  #     - rag-network
+  kg_rag:
+    build: ./knowledge_graph
+    environment:
+      - PYTHONPATH=/app
+      - USER_AGENT=private-ai-rag-graph
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=neo4j_password
+      - KG_CHUNK_SIZE=300
+      - KG_CHUNK_OVERLAP=50
+      - KG_MAX_TOKENS=500
+      - KG_ENABLE_VISUALIZATION=true
+    volumes:
+      - ./knowledge_graph:/app
+      - chroma_db_data:/app/chroma_db
+      - embedding_cache:/app/embedding_cache
+    working_dir: /app
+    ports:
+      - "8000:8000"
+    depends_on:
+      # - ollama_server_lite
+      - ollama_server
+      - neo4j
+    deploy:
+      resources:
+        limits:
+          cpus: '2.00'
+          memory: 4G
+    networks:
+      - rag-network
 
   # ollama_server_lite:
   #   image: langgraph_example-ollama_server_lite:latest

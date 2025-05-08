@@ -30,10 +30,11 @@ class RAGGraphService:
         self.llm = ChatOllama(
             model=self.model,
             base_url=self.base_url,
-            temperature=0,
-            max_tokens=1000,
-            top_p=0.1
+            temperature=0.3,      # Lower randomness = faster + more deterministic
+            max_tokens=256,       # Reduces generation time
+            top_p=0.95            # Broader but still efficient sampling
         )
+
         self.prompt = self._get_prompt()
         self.category_prompt = self._get_category_prompt()
 

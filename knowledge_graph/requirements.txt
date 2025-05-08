@@ -1,0 +1,73 @@
+# Core LangChain
+langchain
+langchain-core
+langchain-community
+langgraph
+
+# Local LLM Integration
+langchain-ollama
+langchain-openai
+
+langchain-experimental
+langchain-text-splitters
+langchain-huggingface
+huggingface_hub[hf_xet]
+
+# Vector Store
+chromadb
+langchain-chroma
+
+# Text Processing
+langchain-text-splitters
+tiktoken
+beautifulsoup4
+pypdf
+
+# Neo4j Integration
+neo4j
+langchain-neo4j
+graphdatascience
+
+# Graph Rag
+neo4j-graphrag
+openai
+
+# Document Processing
+pypdf
+python-docx
+youtube-transcript-api
+beautifulsoup4
+zipp
+sentence-transformers
+pypandoc
+graphdatascience
+tqdm
+unstructured[all-docs]
+unstructured
+unstructured-client
+unstructured-inference
+PyMuPDF
+nltk
+starlette
+
+# Web Framework
+fastapi
+fastapi-health
+uvicorn
+python-multipart
+
+# Environment & Utilities
+python-dotenv
+requests
+
+# Development & Debugging
+langsmith
+
+# LLM Interface
+llama-index
+
+# others
+chardet
+pypandoc-binary
+rouge_score
+ragas

@@ -18,11 +18,11 @@ LANGCHAIN_TRACING_V2=true
 # ========================
 # LLM Configuration
 # ========================
-MODEL=qwen3:0.6b
-MODEL_NAME=qwen3:0.6b
+MODEL=qwen3:4b
+MODEL_NAME=qwen3:4b
 OLLAMA_API_URL=http://ollama_server:11434
 BASE_URL=http://ollama_server:11434
-KG_LLM_MODEL=qwen3:0.6b
+KG_LLM_MODEL=qwen3:4b
 LLM_MODEL_CONFIG_ollama_qwen3=qwen3:4b,http://ollama_server:11434
 
 # ========================

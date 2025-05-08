@@ -1,0 +1,10 @@
+# utilities
+starlette
+sse-starlette
+# langchain-aws
+# langchain-anthropic
+# langchain-fireworks
+# langchain-google-vertexai
+# langchain-groq
+httpx
+

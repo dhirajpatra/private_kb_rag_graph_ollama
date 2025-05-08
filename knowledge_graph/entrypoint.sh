@@ -22,8 +22,8 @@ done
 
 echo "Ollama is up. Proceeding to start services..."
 
-# Start RAG Service
-uvicorn app:app --host 0.0.0.0 --port 5000 &
+# Start Knowledge Graph Service
+uvicorn knowledge_graph.score:app --host 0.0.0.0 --port 8000 &
 
 # Health check
 check_service() {
@@ -34,15 +34,15 @@ echo "Services ready. Monitoring..."
 
 # Monitor processes
 while sleep 30; do
-  for port in 5000; do
+  for port in 8000; do
     if ! curl -fs http://localhost:$port/health >/dev/null; then
       echo "Service on port $port down, restarting..."
       # pkill -f "uvicorn.*:$port"
-      if [ $port -eq 5000 ]; then
-        uvicorn app:app --host 0.0.0.0 --port 5000 &
+      if [ $port -eq 8000 ]; then
+        uvicorn knowledge_graph.score:app --host 0.0.0.0 --port 8000 &
       fi
     fi
   done
 done
 
-check_service 5000 || { echo "RAG service failed"; exit 1; }
+check_service 8000 || { echo "Knowledge Graph service failed"; exit 1; }

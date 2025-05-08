@@ -101,7 +101,7 @@ class Neo4jClient:
             if question_check["count"] > 0:
                 try:
                     session.run("CREATE INDEX question_text_index FOR (q:Question) ON (q.text)")
-                except neo4j.exceptions.CypherError:
+                except neo4j.exceptions.Neo4jError:
                     pass  # Handle case where index already exists
             
             # Step 2: Check if any nodes of type :Category exist
@@ -109,7 +109,7 @@ class Neo4jClient:
             if category_check["count"] > 0:
                 try:
                     session.run("CREATE INDEX category_name_index FOR (c:Category) ON (c.name)")
-                except neo4j.exceptions.CypherError:
+                except neo4j.exceptions.Neo4jError:
                     pass  # Handle case where index already exists
 
 

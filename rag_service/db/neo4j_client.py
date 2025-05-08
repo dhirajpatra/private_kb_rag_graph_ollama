@@ -42,7 +42,7 @@ class Neo4jClient:
             query = """
                 MATCH (q:Question)-[r:ANSWERED_BY]->(a:Answer)
                 WHERE toLower(q.text) CONTAINS toLower($question)
-                RETURN a.text AS answer, elementId(r) as rel_id
+                RETURN a.text AS answer, id(r) as rel_id
                 LIMIT 1
                 """
             result = session.run(query, question=question)
@@ -54,7 +54,7 @@ class Neo4jClient:
                     session.run(
                         """
                         MATCH ()-[r]->()
-                        WHERE elementId(r) = $rel_id
+                        WHERE id(r) = $rel_id
                         SET r.last_used = datetime()
                         """,
                         rel_id=record["rel_id"]

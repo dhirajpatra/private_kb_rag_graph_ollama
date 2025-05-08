@@ -1,5 +1,7 @@
 # rag_service/tools/retriever.py
 import os
+import time
+import httpx
 from dotenv import load_dotenv
 import logging
 from pathlib import Path
@@ -27,6 +29,27 @@ BLOG_URLS = [
 CHUNK_SIZE = 300
 CHUNK_OVERLAP = 50
 k = 3
+
+
+def wait_for_ollama_model(model: str, base_url: str, timeout: int = 60, interval: int = 5):
+    """Wait until the embedding model is available on Ollama."""
+    embed_url = f"{base_url}/api/embed"
+    dummy_payload = {"model": model, "prompt": "ping"}
+    start_time = time.time()
+
+    while time.time() - start_time < timeout:
+        try:
+            response = httpx.post(embed_url, json=dummy_payload)
+            if response.status_code != 404:
+                logging.info(f"Ollama model '{model}' is available.")
+                return True
+        except Exception as e:
+            logging.warning(f"Ollama not ready yet: {e}")
+        logging.info(f"Waiting for Ollama model '{model}' to load...")
+        time.sleep(interval)
+    
+    raise RuntimeError(f"Timeout waiting for Ollama model '{model}' to load.")
+
 
 def is_chroma_db_initialized(persist_dir: str) -> list[str]:
     """Check if ChromaDB is properly initialized after saving."""
@@ -56,6 +79,9 @@ def is_chroma_db_initialized(persist_dir: str) -> list[str]:
     return valid_collections
 
 def initialize_retriever():
+    # Wait for the embedding model to be available
+    wait_for_ollama_model(EMBEDDING_MODEL, OLLAMA_SERVER_URL)
+
     # Configure Ollama embeddings with correct server URL
     embeddings = OllamaEmbeddings(
         model=EMBEDDING_MODEL,
@@ -67,6 +93,7 @@ def initialize_retriever():
 
     # Create cached embeddings
     fs = LocalFileStore(EMBEDDING_CACHE_DIR)
+    logging.info(f"Creating cached embeddings at {EMBEDDING_CACHE_DIR}")
     cached_embeddings = CacheBackedEmbeddings.from_bytes_store(
         embeddings,
         fs,
@@ -102,21 +129,28 @@ def initialize_retriever():
             loader = WebBaseLoader(BLOG_URLS)
             
             docs = loader.load()
-            
+            logging.info(f"Loaded {len(docs)} documents from URLs {BLOG_URLS}") 
             splitter = RecursiveCharacterTextSplitter(
                 chunk_size=CHUNK_SIZE,
                 chunk_overlap=CHUNK_OVERLAP
             )
             splits = splitter.split_documents(docs)
-            
+
+            # for just testing splits
+            for doc in splits[:2]:
+                logging.info(f"Sample chunk: {doc.page_content[:100]}")
+                logging.info(f"Embedding: {cached_embeddings.embed_query(doc.page_content[:100])}")
+
             # Create and return the vectorstore - persistence is automatic
+            logging.info(f"Creating new ChromaDB vectorstore at {PERSIST_DIR} and cache embeddings at {cached_embeddings}")
             vectorstore = Chroma.from_documents(
                 documents=splits,
                 embedding=cached_embeddings,
                 collection_name=COLLECTION_NAME,
                 persist_directory=PERSIST_DIR
             )
-            
+
+            logging.info(f"Created new ChromaDB vectorstore at {PERSIST_DIR}")
             return vectorstore.as_retriever(search_kwargs={"k": k})
         except Exception as e:
             logging.error(f"Failed to create new ChromaDB: {e}")

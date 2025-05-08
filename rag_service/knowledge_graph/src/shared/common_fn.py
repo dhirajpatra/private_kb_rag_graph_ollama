@@ -24,6 +24,7 @@ EMBEDDING_CACHE_DIR = "./embedding_cache"
 COLLECTION_NAME = "uploaded-docs"
 # go to container and pull the model fist eg. ollama pull mxbai-embed-large
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
+EMBEDDING_MODEL_SERVER = os.getenv("EMBEDDING_MODEL_SERVER")
 EMBEDDING_MODEL_DIMENSION = 1024
 OLLAMA_SERVER_URL = os.getenv("BASE_URL")
 CHUNK_SIZE = 300
@@ -113,7 +114,7 @@ def create_graph_database_connection(uri,
     # Return the connected Neo4j graph object
     return graph
 
-def load_embedding_model(embedding_model_name: str = os.getenv("EMBEDDING_MODEL_SERVER")):
+def load_embedding_model(embedding_model_name: str = EMBEDDING_MODEL_SERVER):
     if embedding_model_name == "openai":
         embeddings = OpenAIEmbeddings()
         dimension = 1536

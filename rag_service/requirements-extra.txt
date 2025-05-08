@@ -6,5 +6,5 @@ sse-starlette
 # langchain-fireworks
 # langchain-google-vertexai
 # langchain-groq
-
+httpx
 

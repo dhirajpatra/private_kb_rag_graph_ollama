@@ -5,7 +5,7 @@ from ui.sidebar import render_sidebar
 from ui.chatbox import render_chatbox
 from ui.file_table import render_file_table
 
-st.set_page_config(page_title="Zeno Chatbot", page_icon="📂", layout="wide")
+st.set_page_config(page_title="Indian Leagal Chatbot", page_icon="📂", layout="wide")
 
 render_sidebar()
 

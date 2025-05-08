@@ -1,23 +1,37 @@
-# Dockerfile for the agent service
+# Dockerfile for the rag service
 FROM python:3.11-slim
 
-# Prevent Python from writing .pyc files and enable unbuffered logs
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Set working directory
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    gcc \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory and create user
 WORKDIR /app
+RUN useradd -m agentuser && chown -R agentuser /app
 
-# Install dependencies
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Upgrade pip
+RUN pip install --upgrade pip
 
-# Copy and fix permissions BEFORE anything else
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod 755 /app/entrypoint.sh  # ← more reliable than  +x
+# Copy and install base requirements
+COPY --chown=agentuser requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Now copy the rest of the app
-COPY . .
+# Copy and install extra requirements separately
+COPY --chown=agentuser requirements-extra.txt ./
+RUN pip install --no-cache-dir -r requirements-extra.txt
+
+# Copy entrypoint and set permissions
+COPY --chown=agentuser entrypoint.sh ./
+RUN chmod 755 /app/entrypoint.sh
+
+# Copy application code
+USER agentuser
+COPY --chown=agentuser . .
 
 ENTRYPOINT ["/app/entrypoint.sh"]
